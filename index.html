@@ -536,8 +536,39 @@ async function viewReport(id){
         `<div class="thumbwrap"><img data-path="${esc(ph.storage_path)}" alt="clinical photo">
          ${ro?"":`<button class="del noprint" data-delphoto="${ph.id}" data-path="${esc(ph.storage_path)}">✕</button>`}
          ${ro?"":`<button class="btn ghost sm noprint" data-analyse="${esc(ph.storage_path)}"
-            style="width:100%;margin-top:5px;min-height:34px;font-size:12px">Analyse</button>`}</div>`).join("")}</div>`
+            style="width:100%;margin-top:5px;min-height:34px;font-size:12px">Analyse</button>
+          <button class="btn ghost sm noprint" data-compare="${esc(ph.storage_path)}"
+            style="width:100%;margin-top:4px;min-height:34px;font-size:12px">Compare areas</button>`}</div>`).join("")}</div>`
     : `<p class="sub">No photos yet.</p>`;
+
+  const comps = (r.ai && r.ai._compare) || [];
+  const compareBlock = comps.length ? `
+    <div class="eyebrow dim" style="margin:26px 0 8px">Area comparisons</div>
+    ${comps.map(c => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:14.5px">${esc(c.label)}</div>
+            <div style="font-size:15px;color:var(--roseDeep);margin-top:5px">${esc(c.verdict)}</div>
+            <div class="sub" style="margin-top:5px">${esc(c.detail)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="mono" style="font-size:13px">pigment ${c.dMel>0?"+":""}${c.dMel}</div>
+            <div class="mono" style="font-size:13px">blood &nbsp;&nbsp;${c.dHem>0?"+":""}${c.dHem}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:9px;margin-top:10px;align-items:center">
+          <span class="tiny">AREA 1</span>
+          <span style="width:26px;height:18px;border-radius:3px;border:1px solid var(--line);
+            background:rgb(${c.rgbA.join(",")})"></span>
+          <span class="tiny">AREA 2</span>
+          <span style="width:26px;height:18px;border-radius:3px;border:1px solid var(--line);
+            background:rgb(${c.rgbB.join(",")})"></span>
+          <span class="chip ai" style="margin-left:auto">AI MEASURED · LOCKED</span>
+        </div>
+      </div>`).join("")}
+    <p class="tiny" style="line-height:1.8">BOTH AREAS COME FROM THE SAME PHOTOGRAPH UNDER THE SAME LIGHT.
+      THIS COMPARISON HOLDS EVEN WITHOUT A WHITE REFERENCE.</p>` : "";
 
   const m = r.ai && r.ai._meta;
   const quality = m ? `
@@ -653,6 +684,7 @@ async function viewReport(id){
     <p class="tiny" style="margin:14px 0 0;line-height:1.7">THE SKIN-SCAN ENGINE DOES NOT ANALYSE SCALP OR HAIR. THESE ARE YOUR OWN READINGS.</p>
   </div>
 
+  ${compareBlock}
   ${compare}
 
   <div class="eyebrow dim" style="margin:26px 0 8px">Your note</div>
@@ -803,6 +835,17 @@ async function viewHandout(id){
       </tbody></table>
       <p class="fine">Scores run 0–100. They describe this photograph, under this lighting.
       They are most meaningful when compared with your next visit.</p>` : ""}
+
+    ${(ai._compare && ai._compare.length) ? `<h3>Area-by-area findings</h3>
+      <table class="ht"><tbody>
+      ${ai._compare.map(c=>`<tr>
+        <td style="width:38%"><b>${esc(c.label)}</b>
+          <div class="fine">Two areas of your skin measured against each other</div></td>
+        <td><b style="color:var(--roseDeep)">${esc(c.verdict)}</b>
+          <div class="fine">${esc(c.detail)}</div></td></tr>`).join("")}
+      </tbody></table>
+      <p class="fine">Because both areas come from the same photograph under the same light,
+      this comparison is the most reliable measurement in this report.</p>` : ""}
 
     ${progress}
 
@@ -999,6 +1042,72 @@ function analysePixels(px,w,h,manualRef){
   };
 }
 
+/* ---- Comparing two areas of the SAME photo ----
+   Both patches sit under identical light, so the difference between them
+   survives even with no white reference at all. This is the most reliable
+   measurement the app makes. */
+const COMPARISONS = [
+  { k:"darkCircle", label:"Dark circles",
+    a:"Tap the darkest part under the eye", b:"Tap the cheek just below it",
+    hint:"Tells you whether the darkness is pigment or blood — which decides the treatment." },
+  { k:"sunDamage", label:"Sun-exposed vs covered skin",
+    a:"Tap the cheek or forehead", b:"Tap under the jaw, or behind the ear",
+    hint:"Sun-related pigment measured on this patient, not assumed from a database." },
+  { k:"patch", label:"Patch vs normal skin",
+    a:"Tap the middle of the patch", b:"Tap clear skin beside it",
+    hint:"How distinct the patch is. This is the number that should fall with treatment." },
+  { k:"custom", label:"Any two areas",
+    a:"Tap the first area", b:"Tap the second area",
+    hint:"Difference in pigment and redness between the two." }
+];
+
+/* Noise floors, measured rather than guessed: two patches of IDENTICAL skin,
+   sampled the way this app samples, differ by up to these amounts 95% of the
+   time from sensor noise and ordinary skin texture alone. Anything smaller is
+   not a finding. Blood is measurable at a finer level than pigment, so the
+   two get separate floors. */
+const MEL_FLOOR = 0.068;
+const HEM_FLOOR = 0.041;
+
+function compareRegions(rgbA, rgbB){
+  const A=unmix(rgbA[0],rgbA[1],rgbA[2]), B=unmix(rgbB[0],rgbB[1],rgbB[2]);
+  const dMel=A.mel-B.mel, dHem=A.hem-B.hem;
+  // How far above its own noise floor is each signal?
+  const sMel=Math.abs(dMel)/MEL_FLOOR, sHem=Math.abs(dHem)/HEM_FLOOR;
+  let verdict, detail;
+  if(sMel<1 && sHem<1){
+    verdict="No measurable difference";
+    detail="The two areas read the same. Anything you can see between them is below what "
+         + "a photograph can reliably measure — trust your eye, not this number.";
+  } else if(sMel >= 2*sHem){
+    verdict = dMel>0 ? "Mainly pigment" : "Mainly pigment — less in the first area";
+    detail="Driven by melanin rather than blood. Pigment-directed treatment is the logical route.";
+  } else if(sHem >= 2*sMel){
+    verdict = dHem>0 ? "Mainly vascular" : "Mainly vascular — less in the first area";
+    detail="Driven by blood rather than melanin. Brightening agents would be treating the wrong thing here.";
+  } else {
+    verdict="Mixed — pigment and vascular";
+    detail="Both contribute meaningfully. Expect only a partial response to either approach alone.";
+  }
+  return { dMel:+dMel.toFixed(4), dHem:+dHem.toFixed(4),
+           melScore:Math.round(Math.min(100,Math.abs(dMel)/1.5*100)),
+           hemScore:Math.round(Math.min(100,Math.abs(dHem)/0.7*100)),
+           confident: (sMel>=2 || sHem>=2),
+           verdict, detail };
+}
+
+/* Median of a patch — resists a stray hair or a shadow line. */
+function samplePatch(ctx,x,y,half){
+  const x0=Math.max(0,x-half), y0=Math.max(0,y-half);
+  const w=Math.max(1,Math.min(half*2, ctx.canvas.width-x0));
+  const h=Math.max(1,Math.min(half*2, ctx.canvas.height-y0));
+  const d=ctx.getImageData(x0,y0,w,h).data;
+  const R=[],G=[],B=[];
+  for(let i=0;i<d.length;i+=4){ R.push(d[i]); G.push(d[i+1]); B.push(d[i+2]); }
+  const med=a=>{a.sort((p,q)=>p-q);return a[Math.floor(a.length/2)];};
+  return [med(R),med(G),med(B)];
+}
+
 /* Draw a map as a heatmap the patient can actually see. */
 function renderMap(map,w,h,which){
   const vals=[]; for(let i=0;i<map.length;i++) if(!isNaN(map[i])) vals.push(map[i]);
@@ -1060,6 +1169,81 @@ function pickWhitePoint(signedUrl){
     ov.querySelector("#wpAuto").onclick=()=>done({ mode:"auto" });
     ov.querySelector("#wpNone").onclick=()=>done({ mode:"none" });
   });
+}
+
+function pickTwoPoints(signedUrl){
+  return new Promise(resolve => {
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(26,26,26,.94);"+
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:11px;overflow:auto";
+    ov.innerHTML=`
+      <div id="cpStep" style="color:#fff;font-size:15px;text-align:center;max-width:360px;line-height:1.5"></div>
+      <div id="cpHint" style="color:#bbb;font-size:12.5px;text-align:center;max-width:360px;line-height:1.5"></div>
+      <div id="cpPick" style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:330px"></div>
+      <div style="position:relative;max-width:100%">
+        <img id="cpImg" style="max-width:100%;max-height:56vh;border-radius:8px;cursor:crosshair;display:none">
+        <div id="cpDots"></div>
+      </div>
+      <button id="cpCancel" style="padding:12px 16px;border-radius:6px;border:1px solid #777;
+        background:transparent;color:#eee;font-size:14px;min-height:46px">Cancel</button>`;
+    document.body.appendChild(ov);
+    const im=ov.querySelector("#cpImg"), step=ov.querySelector("#cpStep"),
+          hint=ov.querySelector("#cpHint"), pick=ov.querySelector("#cpPick"),
+          dots=ov.querySelector("#cpDots");
+    im.crossOrigin="anonymous"; im.src=signedUrl;
+    const done=v=>{ ov.remove(); resolve(v); };
+    ov.querySelector("#cpCancel").onclick=()=>done(null);
+
+    step.textContent="What would you like to compare?";
+    pick.innerHTML=COMPARISONS.map(c=>
+      `<button data-c="${c.k}" style="padding:13px;border-radius:6px;border:1px solid #777;
+        background:transparent;color:#fff;font-size:14px;text-align:left;min-height:46px">
+        ${c.label}<div style="color:#aaa;font-size:11.5px;margin-top:3px;line-height:1.4">${c.hint}</div></button>`).join("");
+
+    pick.querySelectorAll("[data-c]").forEach(btn => btn.onclick = () => {
+      const spec=COMPARISONS.find(c=>c.k===btn.dataset.c);
+      pick.style.display="none"; im.style.display="block";
+      let first=null;
+      step.textContent=spec.a;
+      hint.textContent="Tap in the middle of the area, away from hair and shadow.";
+      im.onclick=e=>{
+        const rect=im.getBoundingClientRect();
+        const c=document.createElement("canvas");
+        c.width=im.naturalWidth; c.height=im.naturalHeight;
+        const ctx=c.getContext("2d"); ctx.drawImage(im,0,0);
+        const x=Math.round((e.clientX-rect.left)/rect.width*c.width);
+        const y=Math.round((e.clientY-rect.top)/rect.height*c.height);
+        const half=Math.max(6, Math.round(Math.min(c.width,c.height)*0.02));
+        const rgb=samplePatch(ctx,x,y,half);
+        const dot=document.createElement("div");
+        dot.style.cssText=`position:absolute;left:${e.clientX-rect.left-9}px;top:${e.clientY-rect.top-9}px;`+
+          `width:18px;height:18px;border-radius:50%;border:2px solid #E5007D;`+
+          `background:rgba(229,0,125,.28);pointer-events:none`;
+        dots.appendChild(dot);
+        if(!first){
+          first=rgb;
+          step.textContent=spec.b;
+          hint.textContent="Now the comparison area.";
+        } else {
+          done({ kind:spec.k, label:spec.label, a:first, b:rgb });
+        }
+      };
+    });
+  });
+}
+
+async function runCompare(reportId, pickResult){
+  const res = compareRegions(pickResult.a, pickResult.b);
+  const { data:rep } = await sb.from("di_reports").select("ai").eq("id", reportId).single();
+  const ai = Object.assign({}, rep.ai||{});
+  const list = (ai._compare||[]).filter(c => c.kind !== pickResult.kind);
+  list.push(Object.assign({ kind:pickResult.kind, label:pickResult.label,
+              rgbA:pickResult.a.map(Math.round), rgbB:pickResult.b.map(Math.round),
+              at:new Date().toISOString() }, res));
+  ai._compare = list;
+  await sb.from("di_reports").update({ ai, updated_at:new Date().toISOString() }).eq("id", reportId);
+  await addAudit(reportId, "Compared two areas: " + pickResult.label + " — " + res.verdict);
+  return res;
 }
 
 async function runAnalysis(reportId, signedUrl, choice){
@@ -1223,6 +1407,18 @@ async function wireUp(){
       toast("Analysed. Measurements locked in.");
       setTimeout(render, 2500);
     } catch(e){ fail(e); b.disabled=false; b.textContent="Analyse"; }
+  });
+
+  $$("[data-compare]").forEach(b => b.onclick = async () => {
+    try {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(b.dataset.compare, 600);
+      if(error) throw error;
+      const picked = await pickTwoPoints(data.signedUrl);
+      if(!picked) return;
+      const res = await runCompare(CTX.id, picked);
+      toast(picked.label + ": " + res.verdict, 4500);
+      render();
+    } catch(e){ fail(e); }
   });
 
   const aj = $("#applyJson");
