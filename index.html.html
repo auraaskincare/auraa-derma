@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Derma-Intelligence">
+<meta name="theme-color" content="#1A1416">
+<title>Auraa · Derma-Intelligence</title>
+<style>
+:root{
+  --ground:#1A1416; --panel:#241B1E; --panelHi:#2C2125; --line:#3B2C31;
+  --rose:#B76E79; --gold:#C9A227; --cream:#F2E9E4; --muted:#9A8288; --dim:#6E5A60;
+  --ok:#4E9E7E; --warn:#D99A2B; --bad:#C05B5B; --info:#6E8FB7;
+  --mono:'SF Mono','Roboto Mono',Menlo,ui-monospace,monospace;
+  --display:'Iowan Old Style','Palatino Linotype',Georgia,serif;
+  --body:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--body);
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:16px}
+.hide{display:none!important}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--rose);text-transform:uppercase}
+.eyebrow.dim{color:var(--dim)}
+h2.disp{font-family:var(--display);font-size:24px;font-weight:400;margin:6px 0 4px}
+.mono{font-family:var(--mono)}
+.sub{color:var(--muted);font-size:13px;line-height:1.55}
+.tiny{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em}
+header.top{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+header.top .name{font-family:var(--display);font-size:17px}
+header.top .spacer{flex:1}
+.iconbtn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;
+  min-width:44px;height:36px;font-size:12px;padding:0 10px}
+main{padding:16px 16px 24px;max-width:820px;margin:0 auto}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);
+  border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;background:transparent;border:none;color:var(--dim);padding:10px 4px 12px;
+  font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:56px}
+nav.tabs button .g{font-size:19px;line-height:1}
+nav.tabs button.on{color:var(--rose)}
+.btn{background:transparent;border:1px solid var(--rose);color:var(--cream);border-radius:6px;
+  padding:12px 16px;font-size:14px;min-height:46px;display:inline-flex;align-items:center;
+  justify-content:center;gap:8px;width:100%}
+.btn.solid{background:var(--rose);color:#1A1416;font-weight:600}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.sm{width:auto;padding:9px 14px;min-height:40px;font-size:13px}
+.btn[disabled]{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>.btn{width:auto;flex:1;min-width:130px}
+label.fld{display:block;margin-bottom:12px}
+label.fld>span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input.in,select.in,textarea.in{width:100%;padding:12px;background:var(--panelHi);
+  border:1px solid var(--line);color:var(--cream);border-radius:6px;min-height:46px}
+textarea.in{min-height:76px;resize:vertical;line-height:1.5}
+input.in:focus,select.in:focus,textarea.in:focus{outline:none;border-color:var(--rose)}
+.chip{font-family:var(--mono);font-size:9px;padding:3px 7px;border-radius:3px;
+  border:1px solid var(--line);color:var(--muted);letter-spacing:.06em;white-space:nowrap}
+.chip.ai{border-color:var(--info);color:var(--info)}
+.chip.you{border-color:var(--gold);color:var(--gold)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.bad{border-color:var(--bad);color:var(--bad)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:13px;margin-bottom:9px}
+.card.tap{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--cream)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--line);color:var(--rose);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;flex-shrink:0}
+.banner{padding:11px 13px;border-radius:6px;background:var(--panel);border-left:3px solid var(--warn);
+  font-size:12.5px;line-height:1.55;margin-bottom:9px;color:var(--cream)}
+.banner.bad{border-left-color:var(--bad)}
+.banner.ok{border-left-color:var(--ok)}
+.banner.info{border-left-color:var(--info)}
+.metric{border-bottom:1px solid var(--line);padding:12px 0}
+.metric:last-child{border-bottom:none}
+.metric .mtop{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.metric .mname{font-size:14px}
+.metric .mval{font-family:var(--mono);font-size:19px}
+.metric .mval.locked{color:var(--info)}
+.bar{height:5px;background:var(--panelHi);border-radius:3px;margin-top:8px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--info);border-radius:3px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.thumbs img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;background:var(--panelHi)}
+.thumbwrap{position:relative}
+.thumbwrap button.del{position:absolute;top:4px;right:4px;background:rgba(26,20,22,.85);border:1px solid var(--line);
+  color:var(--bad);border-radius:4px;width:26px;height:26px;font-size:13px;line-height:1;padding:0}
+.pill{padding:8px 13px;border-radius:20px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+  background:transparent;border:1px solid var(--line);color:var(--muted);min-height:38px}
+.pill.on{background:var(--rose);color:#1A1416;border-color:var(--rose)}
+.gate{position:fixed;inset:0;z-index:100;background:var(--ground);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:28px;text-align:center}
+.gate .box{width:100%;max-width:340px}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:200;
+  background:var(--panelHi);border:1px solid var(--rose);border-radius:8px;padding:13px 15px;
+  font-size:13.5px;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+footer.legal{padding:20px 16px calc(20px + env(safe-area-inset-bottom));text-align:center}
+@media print{
+  body{background:#fff;color:#000;padding:0}
+  header.top,nav.tabs,.noprint{display:none!important}
+  .card{background:#fff;border:1px solid #999;color:#000}
+  .metric .mval,.metric .mval.locked{color:#000}
+  .sub,.tiny{color:#333}
+}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="box">
+    <div class="mono" style="font-size:9px;letter-spacing:.24em;color:var(--rose)">AURAA SKINCARE CLINIC</div>
+    <div style="font-family:var(--display);font-size:27px;margin-top:8px">Derma-Intelligence</div>
+    <p class="sub" id="gateMsg" style="margin:14px 0 18px">Sign in with your clinic email.</p>
+    <label class="fld"><span>Email</span><input class="in" id="email" type="email" autocomplete="username" value="auraa.skincare@gmail.com"></label>
+    <label class="fld"><span>Password</span><input class="in" id="pass" type="password" autocomplete="current-password"></label>
+    <button class="btn solid" id="signin">Sign in</button>
+    <p class="tiny" style="margin-top:20px;line-height:1.8">
+      SAME LOGIN AS YOUR BILLING APP.<br>PATIENT RECORDS ARE VISIBLE TO THIS ACCOUNT ONLY.
+    </p>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header class="top">
+    <div>
+      <div class="mono" style="font-size:9px;letter-spacing:.24em;color:var(--rose)">AURAA</div>
+      <div class="name">Derma-Intelligence</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="signout">Sign out</button>
+  </header>
+  <main id="view"></main>
+  <nav class="tabs">
+    <button data-tab="patients" class="on"><span class="g">&#128101;</span>Patients</button>
+    <button data-tab="new"><span class="g">&#43;</span>New</button>
+    <button data-tab="reports"><span class="g">&#128203;</span>Reports</button>
+    <button data-tab="settings"><span class="g">&#9881;</span>Settings</button>
+  </nav>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/* ===================================================================
+   CONNECTION
+   This is a "publishable" key. It is designed to sit in the page and
+   grants nothing by itself — every table is protected by the login
+   rules created in Step 1. No secret key is ever placed in this file.
+   =================================================================== */
+const SUPABASE_URL = "https://pcmmldqcfbslnrmgpoez.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ukrht_UV0BRZB_CJ92ocWg_ZfO3wTV_";
+const ADMIN_EMAIL  = "auraa.skincare@gmail.com";
+const BUCKET       = "derma-photos";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ===================================================================
+   HELPERS
+   =================================================================== */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => { try { return new Date(d).toLocaleDateString("en-GB",
+  {day:"numeric",month:"short",year:"numeric"}); } catch(e){ return d; } };
+const num = v => (v === "" || v == null) ? null : (isFinite(Number(v)) ? Number(v) : null);
+
+let toastTimer = null;
+function toast(msg, ms=2800){
+  let t = $("#toast");
+  if(!t){ t = document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), ms);
+}
+function fail(e){
+  console.error(e);
+  toast(e && e.message ? "Problem: " + e.message : "Something went wrong.", 5000);
+}
+
+/* ===================================================================
+   WHAT THE REPORT MEASURES
+   ai    = measured by the engine. LOCKED, never editable.
+   you   = your clinical grade. Editable.
+   meas  = a scalp measurement you take yourself.
+   =================================================================== */
+const SKIN_AI = [
+  { k:"redness",   label:"Redness / erythema",   unit:"/100" },
+  { k:"oiliness",  label:"Oil / sebum",          unit:"/100" },
+  { k:"texture",   label:"Texture irregularity", unit:"/100" },
+  { k:"pores",     label:"Pore visibility",      unit:"/100" },
+  { k:"blemishes", label:"Blemish load",         unit:"/100" },
+  { k:"hydration", label:"Hydration",            unit:"/100" },
+  { k:"pigment",   label:"Pigmentation load",    unit:"/100" }
+];
+const SKIN_YOU = [
+  { k:"fitzpatrick", label:"Fitzpatrick type",         opts:["","I","II","III","IV","V","VI"] },
+  { k:"glogau",      label:"Glogau photoageing",       opts:["","I","II","III","IV"] },
+  { k:"mmasi",       label:"Melasma severity (mMASI)", num:true, hint:"0–24" },
+  { k:"melasmaType", label:"Melasma pattern",          opts:["","Epidermal","Dermal","Mixed","Not applicable"] },
+  { k:"acneIGA",     label:"Acne severity (IGA)",      opts:["","0 — clear","1 — almost clear","2 — mild","3 — moderate","4 — severe"] },
+  { k:"darkCircle",  label:"Dark circle grade",        opts:["","0","I","II","III"] }
+];
+const HAIR_MEAS = [
+  { k:"density", label:"Hair density",         unit:"/cm²" },
+  { k:"shaft",   label:"Mean shaft thickness", unit:"µm" },
+  { k:"mini",    label:"Miniaturisation",      unit:"%" },
+  { k:"tv",      label:"Terminal : vellus",    unit:"ratio" }
+];
+const HAIR_YOU = [
+  { k:"norwood", label:"Norwood scale (male)",  opts:["","Not applicable","I","II","III","IV","V","VI","VII"] },
+  { k:"ludwig",  label:"Ludwig scale (female)", opts:["","Not applicable","I","II","III"] }
+];
+
+/* ===================================================================
+   SIGN IN
+   =================================================================== */
+$("#signin").onclick = async () => {
+  const email = $("#email").value.trim(), password = $("#pass").value;
+  if(!email || !password){ $("#gateMsg").textContent = "Enter your email and password."; return; }
+  $("#signin").disabled = true; $("#signin").textContent = "Signing in…";
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $("#signin").disabled = false; $("#signin").textContent = "Sign in";
+  if(error){ $("#gateMsg").textContent = "That did not work: " + error.message; return; }
+  await checkSession();
+};
+$("#pass").addEventListener("keydown", e => { if(e.key === "Enter") $("#signin").click(); });
+$("#signout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function checkSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ $("#gate").classList.remove("hide"); $("#app").classList.add("hide"); return; }
+  if(session.user.email !== ADMIN_EMAIL){
+    await sb.auth.signOut();
+    $("#gateMsg").textContent = "That account cannot open patient records. Clinical data is restricted to the clinic admin account.";
+    return;
+  }
+  $("#gate").classList.add("hide");
+  $("#app").classList.remove("hide");
+  go("patients");
+}
+
+/* ===================================================================
+   NAVIGATION
+   =================================================================== */
+let TAB = "patients", CTX = {}, searchQ = "";
+$$("nav.tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
+
+function go(tab, ctx={}){
+  TAB = tab; CTX = ctx;
+  $$("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  render();
+}
+async function render(){
+  const v = $("#view");
+  v.innerHTML = `<div class="sub">Loading…</div>`;
+  try {
+    if(TAB === "patients")      v.innerHTML = await viewPatients();
+    else if(TAB === "patient")  v.innerHTML = await viewPatient(CTX.id);
+    else if(TAB === "edit")     v.innerHTML = await viewEdit(CTX.id);
+    else if(TAB === "new")      v.innerHTML = await viewEdit(null);
+    else if(TAB === "reports")  v.innerHTML = await viewReports();
+    else if(TAB === "report")   v.innerHTML = await viewReport(CTX.id);
+    else if(TAB === "settings") v.innerHTML = await viewSettings();
+    window.scrollTo(0,0);
+    await wireUp();
+  } catch(err){
+    v.innerHTML = `<div class="banner bad">Could not load: ${esc(err.message)}</div>`;
+  }
+}
+
+/* ===================================================================
+   PATIENT LIST
+   =================================================================== */
+async function viewPatients(){
+  let q = sb.from("di_patients").select("*").order("updated_at", { ascending:false }).limit(300);
+  if(searchQ){
+    const s = searchQ.replace(/[%,()]/g,"");
+    q = q.or(`name.ilike.%${s}%,mrn.ilike.%${s}%,phone.ilike.%${s}%,skin_concerns.ilike.%${s}%,hair_concerns.ilike.%${s}%`);
+  }
+  const { data, error } = await q;
+  if(error) throw error;
+  return `
+  <div class="eyebrow">Patient records</div>
+  <h2 class="disp">Your patients</h2>
+  <p class="sub" style="margin:6px 0 14px">${data.length} shown. The same records on your phone, laptop and tablet.</p>
+  <input class="in" id="q" placeholder="Search name, ID, phone, or concern…" value="${esc(searchQ)}" style="margin-bottom:14px">
+  ${data.length ? data.map(p => `
+    <button class="card tap" data-open="${p.id}">
+      <span class="avatar">${esc((p.name||"?").trim().split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase())}</span>
+      <span style="flex:1;min-width:0">
+        <span style="display:block;font-size:15px">${esc(p.name)}</span>
+        <span class="tiny" style="display:block;margin-top:3px">${esc(p.mrn||"no ID")}${p.age?" · "+p.age:""}${esc(p.sex||"")}${p.fitzpatrick?" · FST "+esc(p.fitzpatrick):""}</span>
+        <span style="display:block;font-size:12px;color:var(--muted);margin-top:4px">${esc(p.skin_concerns||p.hair_concerns||"—")}</span>
+      </span>
+      ${p.allergies ? `<span class="chip bad">ALLERGY</span>` : ""}
+    </button>`).join("")
+    : `<div class="card"><p class="sub" style="margin:0">${searchQ ? "Nothing matched that search." : "No patients yet. Tap <b style=\"color:var(--rose)\">New</b> below."}</p></div>`}
+  `;
+}
+
+/* ===================================================================
+   ADD / EDIT PATIENT
+   =================================================================== */
+const P_FIELDS = [
+  ["name","Full name","text"], ["mrn","Clinic ID / MRN","text"],
+  ["age","Age","number"], ["sex","Sex","select:,F,M,Other"],
+  ["phone","Phone","tel"], ["fitzpatrick","Fitzpatrick type","select:,I,II,III,IV,V,VI"],
+  ["skin_concerns","Skin concerns","area"], ["hair_concerns","Hair / scalp concerns","area"],
+  ["allergies","Allergies  ⚠ shown as a warning flag","area"],
+  ["medications","Current medications","area"],
+  ["med_history","Medical history","area"],
+  ["treatment_history","Past treatments","area"],
+  ["menstrual","Menstrual / hormonal history","area"],
+  ["routine","Current skincare routine","area"],
+  ["lifestyle","Lifestyle notes (sun, smoking, diet)","area"],
+  ["stress","Stress score (0–10)","number"], ["sleep","Sleep score (0–10)","number"],
+  ["labs","Lab results","area"]
+];
+const NUMERIC = ["age","stress","sleep"];
+
+function fieldHTML(f, val){
+  const [k, label, type] = f;
+  if(type === "area")
+    return `<label class="fld"><span>${esc(label)}</span><textarea class="in" data-f="${k}">${esc(val)}</textarea></label>`;
+  if(type.startsWith("select:")){
+    const opts = type.slice(7).split(",");
+    return `<label class="fld"><span>${esc(label)}</span><select class="in" data-f="${k}">${
+      opts.map(o => `<option value="${esc(o)}"${String(val ?? "")===o?" selected":""}>${o||"—"}</option>`).join("")}</select></label>`;
+  }
+  return `<label class="fld"><span>${esc(label)}</span><input class="in" type="${type}" data-f="${k}" value="${esc(val)}"></label>`;
+}
+async function viewEdit(id){
+  let p = { consent:{} };
+  if(id){
+    const { data, error } = await sb.from("di_patients").select("*").eq("id", id).single();
+    if(error) throw error;
+    p = data;
+  }
+  return `
+  <div class="eyebrow">${id ? "Edit record" : "New patient"}</div>
+  <h2 class="disp">${id ? esc(p.name) : "Add a patient"}</h2>
+  <p class="sub" style="margin:6px 0 16px">Only the name is required. Fill in the rest over time.</p>
+  ${P_FIELDS.map(f => fieldHTML(f, p[f[0]] ?? "")).join("")}
+  <div class="eyebrow dim" style="margin:18px 0 8px">Consent — each one separate, each one withdrawable</div>
+  ${[["care","Care delivery"],["training","Use images to improve the tool"],
+     ["research","Research / teaching"],["marketing","Before-and-after marketing"]]
+    .map(([k,l]) => `
+    <label class="fld" style="display:flex;align-items:center;gap:11px;margin-bottom:9px">
+      <input type="checkbox" data-c="${k}" ${p.consent && p.consent[k] ? "checked" : ""}
+        style="width:22px;height:22px;accent-color:var(--rose);flex-shrink:0">
+      <span style="margin:0;font-size:14px;color:var(--cream)">${l}</span>
+    </label>`).join("")}
+  <div class="row" style="margin-top:20px">
+    <button class="btn solid" id="savePatient" data-id="${id||""}">Save patient</button>
+    ${id ? `<button class="btn ghost" data-open="${id}">Cancel</button>`
+         : `<button class="btn ghost" data-tab="patients">Cancel</button>`}
+  </div>
+  ${id ? `<button class="btn danger" id="delPatient" data-id="${id}" style="margin-top:22px">Delete this patient permanently</button>` : ""}
+  `;
+}
+
+/* ===================================================================
+   PATIENT DETAIL
+   =================================================================== */
+async function viewPatient(id){
+  const { data:p, error } = await sb.from("di_patients").select("*").eq("id", id).single();
+  if(error) throw error;
+  const { data:reps } = await sb.from("di_reports").select("id,report_date,signed,engine")
+    .eq("patient_id", id).order("report_date", { ascending:false });
+  const line = (l,v) => v ? `
+    <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div class="tiny">${esc(l).toUpperCase()}</div>
+      <div style="font-size:13.5px;margin-top:4px;line-height:1.5">${esc(v)}</div>
+    </div>` : "";
+  return `
+  <button class="btn ghost sm" data-tab="patients" style="margin-bottom:14px">‹ All patients</button>
+  <div class="eyebrow">Patient record</div>
+  <h2 class="disp">${esc(p.name)}</h2>
+  <div class="tiny" style="margin-bottom:14px">${esc(p.mrn||"no ID")}${p.age?" · "+p.age:""}${esc(p.sex||"")}${p.fitzpatrick?" · FST "+esc(p.fitzpatrick):""}</div>
+  ${p.allergies ? `<div class="banner bad"><b>Allergy on record:</b> ${esc(p.allergies)}</div>` : ""}
+  <div class="row" style="margin-bottom:18px">
+    <button class="btn solid" data-newreport="${id}">New analysis</button>
+    <button class="btn" data-edit="${id}">Edit record</button>
+  </div>
+  <div class="card">
+    ${line("Skin concerns", p.skin_concerns)}
+    ${line("Hair / scalp concerns", p.hair_concerns)}
+    ${line("Current medications", p.medications)}
+    ${line("Medical history", p.med_history)}
+    ${line("Past treatments", p.treatment_history)}
+    ${line("Menstrual / hormonal", p.menstrual)}
+    ${line("Current routine", p.routine)}
+    ${line("Lifestyle", p.lifestyle)}
+    ${(p.stress!=null||p.sleep!=null) ? line("Stress / sleep", `Stress ${p.stress??"—"}/10 · Sleep ${p.sleep??"—"}/10`) : ""}
+    ${line("Labs", p.labs)}
+    <div style="padding:10px 0 0">
+      <div class="tiny">CONSENT</div>
+      <div class="row" style="margin-top:7px;gap:6px">
+        ${[["care","Care"],["training","Training"],["research","Research"],["marketing","Marketing"]]
+          .map(([k,l]) => `<span class="chip ${p.consent && p.consent[k] ? "ok" : ""}">${l.toUpperCase()} ${p.consent && p.consent[k] ? "✓" : "✕"}</span>`).join("")}
+      </div>
+    </div>
+  </div>
+  <div class="eyebrow dim" style="margin:20px 0 9px">Analyses (${reps ? reps.length : 0})</div>
+  ${reps && reps.length ? reps.map(r => `
+    <button class="card tap" data-report="${r.id}">
+      <span style="flex:1">
+        <span style="display:block;font-size:14px">${fmtDate(r.report_date)}</span>
+        <span class="tiny" style="display:block;margin-top:3px">${esc(r.engine||"")}</span>
+      </span>
+      <span class="chip ${r.signed?"ok":"warn"}">${r.signed?"SIGNED":"DRAFT"}</span>
+    </button>`).join("")
+    : `<p class="sub">No analyses yet.</p>`}
+  `;
+}
+
+/* ===================================================================
+   REPORTS LIST
+   =================================================================== */
+async function viewReports(){
+  const { data, error } = await sb.from("di_reports")
+    .select("id,report_date,signed,di_patients(name)")
+    .order("report_date",{ascending:false}).limit(200);
+  if(error) throw error;
+  return `
+  <div class="eyebrow">Analyses</div>
+  <h2 class="disp">All reports</h2>
+  <p class="sub" style="margin:6px 0 14px">${data.length} report${data.length===1?"":"s"}, newest first.</p>
+  ${data.length ? data.map(r => `
+    <button class="card tap" data-report="${r.id}">
+      <span style="flex:1">
+        <span style="display:block;font-size:14.5px">${esc(r.di_patients ? r.di_patients.name : "Unknown")}</span>
+        <span class="tiny" style="display:block;margin-top:3px">${fmtDate(r.report_date)}</span>
+      </span>
+      <span class="chip ${r.signed?"ok":"warn"}">${r.signed?"SIGNED":"DRAFT"}</span>
+    </button>`).join("")
+    : `<div class="card"><p class="sub" style="margin:0">No analyses yet. Open a patient and tap <b style="color:var(--rose)">New analysis</b>.</p></div>`}
+  `;
+}
+
+/* ===================================================================
+   THE ANALYSIS REPORT
+   =================================================================== */
+function metricRow(m, val, kind){
+  const has = val !== "" && val != null;
+  const chip = kind === "ai"   ? `<span class="chip ai">AI MEASURED · LOCKED</span>`
+             : kind === "meas" ? `<span class="chip">YOUR MEASUREMENT</span>`
+             :                   `<span class="chip you">YOUR GRADE · EDITABLE</span>`;
+  if(kind === "ai"){
+    const pct = has ? Math.max(0, Math.min(100, Number(val))) : 0;
+    return `<div class="metric">
+      <div class="mtop">
+        <span class="mname">${esc(m.label)}</span>
+        <span class="mval locked">${has?esc(val):"—"}<span style="font-size:11px;color:var(--dim)"> ${esc(m.unit||"")}</span></span>
+      </div>
+      ${has ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+      <div style="margin-top:5px">${chip}</div>
+    </div>`;
+  }
+  const input = m.opts
+    ? `<select class="in" data-m="${kind}:${m.k}" style="margin-top:8px">${
+        m.opts.map(o => `<option value="${esc(o)}"${String(val ?? "")===o?" selected":""}>${o||"—"}</option>`).join("")}</select>`
+    : `<input class="in" type="${m.num||m.unit?"number":"text"}" step="any" data-m="${kind}:${m.k}"
+        value="${esc(val)}" placeholder="${esc(m.hint||m.unit||"")}" style="margin-top:8px">`;
+  return `<div class="metric">
+    <div class="mtop"><span class="mname">${esc(m.label)}</span>${chip}</div>${input}
+  </div>`;
+}
+
+async function viewReport(id){
+  const { data:r, error } = await sb.from("di_reports").select("*").eq("id", id).single();
+  if(error) throw error;
+  const { data:p } = await sb.from("di_patients").select("name").eq("id", r.patient_id).single();
+  const { data:photos } = await sb.from("di_photos").select("*").eq("report_id", id).order("created_at");
+  const ro = r.signed;
+  const ai = r.ai || {}, grades = r.grades || {}, hair = r.hair || {}, hairG = r.hair_grades || {};
+
+  const photoHTML = photos && photos.length
+    ? `<div class="thumbs">${photos.map(ph =>
+        `<div class="thumbwrap"><img data-path="${esc(ph.storage_path)}" alt="clinical photo">
+         ${ro?"":`<button class="del noprint" data-delphoto="${ph.id}" data-path="${esc(ph.storage_path)}">✕</button>`}</div>`).join("")}</div>`
+    : `<p class="sub">No photos yet.</p>`;
+
+  const { data:priors } = await sb.from("di_reports").select("report_date,ai")
+    .eq("patient_id", r.patient_id).eq("signed", true).lt("report_date", r.report_date)
+    .order("report_date",{ascending:false}).limit(1);
+  let compare = "";
+  if(priors && priors.length){
+    const prior = priors[0], pai = prior.ai || {};
+    const rows = SKIN_AI.map(m => {
+      const a = Number(pai[m.k]), b = Number(ai[m.k]);
+      if(!isFinite(a) || !isFinite(b) || a === 0) return "";
+      const d = Math.round(((b - a) / a) * 100);
+      const good = (m.k === "hydration") ? d > 0 : d < 0;
+      return `<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)">
+        <span style="font-size:13px;color:var(--muted)">${esc(m.label)}</span>
+        <span class="mono" style="font-size:14px;color:${d===0?"var(--muted)":good?"var(--ok)":"var(--bad)"}">
+          ${a} → ${b} &nbsp; ${d>0?"↑":d<0?"↓":""}${Math.abs(d)}%</span></div>`;
+    }).join("");
+    if(rows.replace(/\s/g,"")) compare = `
+      <div class="eyebrow dim" style="margin:24px 0 8px">Change since ${fmtDate(prior.report_date)}</div>
+      <div class="card">${rows}
+        <p class="tiny" style="margin:12px 0 0;line-height:1.7">MEASURED CHANGE BETWEEN TWO SCANS. ONLY MEANINGFUL IF BOTH PHOTOS WERE TAKEN IN THE SAME LIGHT, AT THE SAME DISTANCE, WITH THE SAME COLOUR CARD.</p></div>`;
+  }
+
+  return `
+  <button class="btn ghost sm noprint" data-open="${r.patient_id}" style="margin-bottom:14px">‹ Back to ${esc(p ? p.name : "patient")}</button>
+  <div class="eyebrow">Analysis report</div>
+  <h2 class="disp">${esc(p ? p.name : "")}</h2>
+  <div class="tiny" style="margin-bottom:14px">${fmtDate(r.report_date)} · ${esc(r.engine||"")}${r.signed?" · SIGNED "+fmtDate(r.signed_at):""}</div>
+
+  ${r.signed
+    ? `<div class="banner ok">You signed this off on ${fmtDate(r.signed_at)}. It is locked. Start a new analysis to record changes.</div>`
+    : `<div class="banner info">Draft. Nothing here should be shown to the patient until you sign it off.</div>`}
+
+  <div class="eyebrow dim" style="margin:20px 0 8px">Photos</div>
+  ${photoHTML}
+  ${ro?"":`
+  <label class="btn ghost noprint" style="margin-top:9px">
+    Take or add a photo
+    <input type="file" accept="image/*" capture="environment" id="photoIn" multiple style="display:none">
+  </label>`}
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">Skin — measured by the AI</div>
+  ${ro?"":`
+  <div class="card noprint">
+    <p class="sub" style="margin:0 0 10px">Paste the result from the skin-scan engine, or type the numbers yourself.</p>
+    <textarea class="in" id="pasteJson" placeholder='{"scores":{"redness":0.81,"pigment":0.97, ...}}'></textarea>
+    <div class="row" style="margin-top:9px">
+      <button class="btn sm" id="applyJson">Read the numbers</button>
+      <button class="btn ghost sm" id="manualAi">Type them myself</button>
+    </div>
+  </div>`}
+  <div class="card">
+    ${SKIN_AI.map(m => metricRow(m, ai[m.k] ?? "", "ai")).join("")}
+    <p class="tiny" style="margin:14px 0 0;line-height:1.7">
+      THESE ARE RAW MEASUREMENTS. THEY ARE LOCKED AND CANNOT BE EDITED.
+      THE ENGINE DOES NOT REPORT ITS OWN CONFIDENCE — SET YOUR TRUST LEVEL BELOW.</p>
+  </div>
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">How much do you trust this scan?</div>
+  <div class="row noprint" style="gap:7px;margin-bottom:8px">
+    ${["High","Moderate","Low"].map(t =>
+      `<button class="pill ${r.trust===t?"on":""}" ${ro?"disabled":""} data-trust="${t}">${t.toUpperCase()}</button>`).join("")}
+  </div>
+  <p class="sub" style="margin:0 0 4px">${r.trust?"Recorded as <b>"+esc(r.trust)+"</b> confidence.":"Not set."}
+  On Fitzpatrick IV–VI the pigment measurement is the least reliable — the engine looks for brown, and the whole face is brown.</p>
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">Skin — your clinical grades</div>
+  <div class="card">
+    ${SKIN_YOU.map(m => ro
+      ? `<div class="metric"><div class="mtop"><span class="mname">${esc(m.label)}</span>
+         <span class="mval">${esc(grades[m.k]||"—")}</span></div></div>`
+      : metricRow(m, grades[m.k] ?? "", "you")).join("")}
+  </div>
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">Hair &amp; scalp — your measurements</div>
+  <div class="card">
+    ${HAIR_MEAS.map(m => ro
+      ? `<div class="metric"><div class="mtop"><span class="mname">${esc(m.label)}</span>
+         <span class="mval">${esc(hair[m.k]||"—")} <span style="font-size:11px;color:var(--dim)">${esc(m.unit)}</span></span></div></div>`
+      : metricRow(m, hair[m.k] ?? "", "meas")).join("")}
+    ${HAIR_YOU.map(m => ro
+      ? `<div class="metric"><div class="mtop"><span class="mname">${esc(m.label)}</span>
+         <span class="mval">${esc(hairG[m.k]||"—")}</span></div></div>`
+      : metricRow(m, hairG[m.k] ?? "", "hairYou")).join("")}
+    <p class="tiny" style="margin:14px 0 0;line-height:1.7">THE SKIN-SCAN ENGINE DOES NOT ANALYSE SCALP OR HAIR. THESE ARE YOUR OWN READINGS.</p>
+  </div>
+
+  ${compare}
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">Your note</div>
+  ${ro ? `<div class="card"><p class="sub" style="margin:0;color:var(--cream)">${esc(r.note||"—")}</p></div>`
+       : `<textarea class="in" data-m="note:note" placeholder="Clinical impression, plan, what you told the patient…">${esc(r.note||"")}</textarea>`}
+
+  ${ro ? `<div class="row noprint" style="margin-top:22px"><button class="btn" id="printBtn">Print / save as PDF</button></div>`
+       : `<div class="row noprint" style="margin-top:22px">
+            <button class="btn solid" id="signOff" data-id="${r.id}">Review complete — sign off</button></div>
+          <p class="sub" style="margin-top:10px">Signing off locks this report permanently. To record changes later, start a new analysis.</p>
+          <button class="btn danger noprint" id="delReport" data-id="${r.id}" data-pid="${r.patient_id}" style="margin-top:22px">Delete this draft</button>`}
+
+  <footer class="legal">
+    <p class="tiny" style="line-height:1.8">
+      AURAA SKINCARE CLINIC · DECISION SUPPORT FOR THE TREATING CLINICIAN.<br>
+      THE AI MEASURES. THE CLINICIAN DECIDES. THIS IS NOT A DIAGNOSIS.</p>
+  </footer>`;
+}
+
+/* ===================================================================
+   SETTINGS
+   =================================================================== */
+async function viewSettings(){
+  const { count:pc } = await sb.from("di_patients").select("*",{count:"exact",head:true});
+  const { count:rc } = await sb.from("di_reports").select("*",{count:"exact",head:true});
+  const { count:hc } = await sb.from("di_photos").select("*",{count:"exact",head:true});
+  const { data:{ session } } = await sb.auth.getSession();
+  return `
+  <div class="eyebrow">Settings</div>
+  <h2 class="disp">Your data</h2>
+  <div class="card" style="margin-top:14px">
+    ${[["Signed in as", session && session.user ? session.user.email : "—"],
+       ["Patients", pc==null?0:pc],["Reports", rc==null?0:rc],["Photos", hc==null?0:hc]]
+      .map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)">
+        <span class="sub">${k}</span><span class="mono" style="font-size:12px">${esc(v)}</span></div>`).join("")}
+  </div>
+  <div class="banner ok" style="margin-top:18px">
+    <b>All three devices show the same records.</b> Anything you save on your phone appears on your
+    laptop and tablet straight away. Photos sit in a private store — there is no open link to them.
+  </div>
+  <div class="banner info">
+    <b>This needs internet.</b> Records live in Supabase, so if the clinic wifi drops the app will not
+    load new patients until it comes back.
+  </div>
+  <div class="eyebrow dim" style="margin:28px 0 8px">Export</div>
+  <button class="btn ghost" id="exportAll">Download all records as a file</button>
+  <p class="sub" style="margin-top:10px">A plain copy for your own records. Keep it somewhere private — this file is not encrypted.</p>
+  <footer class="legal">
+    <p class="tiny" style="line-height:1.8">
+      PATIENT RECORDS ARE RESTRICTED TO THE CLINIC ADMIN ACCOUNT.<br>
+      STAFF LOGINS CANNOT OPEN CLINICAL PHOTOS OR HISTORIES.</p>
+  </footer>`;
+}
+
+/* ===================================================================
+   BUTTON WIRING
+   =================================================================== */
+async function wireUp(){
+  const q = $("#q");
+  if(q) q.oninput = e => {
+    searchQ = e.target.value.trim();
+    clearTimeout(q._t); q._t = setTimeout(render, 300);
+  };
+
+  // photos are private — fetch a temporary signed link for each
+  for(const img of $$("img[data-path]")){
+    const { data } = await sb.storage.from(BUCKET).createSignedUrl(img.dataset.path, 3600);
+    if(data && data.signedUrl) img.src = data.signedUrl;
+  }
+
+  const sp = $("#savePatient");
+  if(sp) sp.onclick = async () => {
+    const row = {};
+    $$("[data-f]").forEach(el => {
+      const k = el.dataset.f, v = el.value.trim();
+      row[k] = NUMERIC.includes(k) ? num(v) : (v || null);
+    });
+    if(!row.name){ toast("Please enter a name."); return; }
+    row.consent = {};
+    $$("[data-c]").forEach(el => row.consent[el.dataset.c] = el.checked);
+    row.updated_at = new Date().toISOString();
+    sp.disabled = true;
+    try {
+      let id = sp.dataset.id;
+      if(id){
+        const { error } = await sb.from("di_patients").update(row).eq("id", id);
+        if(error) throw error;
+      } else {
+        const { data, error } = await sb.from("di_patients").insert(row).select("id").single();
+        if(error) throw error;
+        id = data.id;
+      }
+      toast("Saved.");
+      go("patient", { id });
+    } catch(e){ fail(e); sp.disabled = false; }
+  };
+
+  const dp = $("#delPatient");
+  if(dp) dp.onclick = async () => {
+    if(!confirm("Delete this patient, and every report and photo belonging to them?\n\nThis cannot be undone.")) return;
+    try {
+      const { data:phs } = await sb.from("di_photos").select("storage_path").eq("patient_id", dp.dataset.id);
+      if(phs && phs.length) await sb.storage.from(BUCKET).remove(phs.map(x => x.storage_path));
+      const { error } = await sb.from("di_patients").delete().eq("id", dp.dataset.id);
+      if(error) throw error;
+      toast("Deleted."); go("patients");
+    } catch(e){ fail(e); }
+  };
+
+  const pi = $("#photoIn");
+  if(pi) pi.onchange = async e => {
+    const files = Array.from(e.target.files); if(!files.length) return;
+    toast("Uploading…", 9000);
+    try {
+      const { data:r } = await sb.from("di_reports").select("id,patient_id").eq("id", CTX.id).single();
+      for(const f of files){
+        const blob = await shrink(f);
+        const path = `${r.patient_id}/${r.id}/${crypto.randomUUID()}.jpg`;
+        const { error:upErr } = await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/jpeg" });
+        if(upErr) throw upErr;
+        const { error:rowErr } = await sb.from("di_photos")
+          .insert({ report_id:r.id, patient_id:r.patient_id, storage_path:path });
+        if(rowErr) throw rowErr;
+      }
+      await addAudit(CTX.id, files.length + " photo(s) added");
+      toast("Photos saved."); render();
+    } catch(err){ fail(err); }
+  };
+
+  $$("[data-delphoto]").forEach(b => b.onclick = async () => {
+    if(!confirm("Remove this photo?")) return;
+    try {
+      await sb.storage.from(BUCKET).remove([b.dataset.path]);
+      await sb.from("di_photos").delete().eq("id", b.dataset.delphoto);
+      await addAudit(CTX.id, "Photo removed");
+      render();
+    } catch(e){ fail(e); }
+  });
+
+  const aj = $("#applyJson");
+  if(aj) aj.onclick = async () => {
+    const raw = $("#pasteJson").value.trim();
+    if(!raw){ toast("Paste the engine's result first."); return; }
+    let obj;
+    try { obj = JSON.parse(raw); }
+    catch(e){ toast("That is not a valid result. Copy the whole thing including the curly brackets."); return; }
+    const s = obj.scores || obj, aiNew = {};
+    let n = 0;
+    SKIN_AI.forEach(m => {
+      let v = s[m.k]; if(v == null) return;
+      v = Number(v); if(!isFinite(v)) return;
+      aiNew[m.k] = Math.round(v <= 1 ? v * 100 : v); n++;
+    });
+    if(!n){ toast("No matching measurements found in that text."); return; }
+    try {
+      await sb.from("di_reports").update({ ai:aiNew, engine:"skin-scan (pasted)",
+        updated_at:new Date().toISOString() }).eq("id", CTX.id);
+      await addAudit(CTX.id, n + " AI measurements imported");
+      toast(n + " measurements locked in."); render();
+    } catch(e){ fail(e); }
+  };
+
+  const ma = $("#manualAi");
+  if(ma) ma.onclick = async () => {
+    const { data:r } = await sb.from("di_reports").select("ai").eq("id", CTX.id).single();
+    const aiNew = Object.assign({}, r.ai || {});
+    for(const m of SKIN_AI){
+      const v = prompt(m.label + " (0–100). Leave blank to skip.", aiNew[m.k] ?? "");
+      if(v === null) break;
+      if(v.trim() === "") continue;
+      const n = Number(v); if(isFinite(n)) aiNew[m.k] = Math.round(n);
+    }
+    try {
+      await sb.from("di_reports").update({ ai:aiNew, engine:"entered by clinician",
+        updated_at:new Date().toISOString() }).eq("id", CTX.id);
+      await addAudit(CTX.id, "Measurements entered manually");
+      render();
+    } catch(e){ fail(e); }
+  };
+
+  // editable fields save when you move away from them
+  $$("[data-m]").forEach(el => el.onchange = async () => {
+    const parts = el.dataset.m.split(":"), kind = parts[0], key = parts[1];
+    try {
+      const { data:r } = await sb.from("di_reports").select("grades,hair,hair_grades").eq("id", CTX.id).single();
+      const patch = { updated_at:new Date().toISOString() };
+      if(kind === "note")          patch.note        = el.value;
+      else if(kind === "you")      patch.grades      = Object.assign({}, r.grades||{},      { [key]: el.value });
+      else if(kind === "meas")     patch.hair        = Object.assign({}, r.hair||{},        { [key]: el.value });
+      else if(kind === "hairYou")  patch.hair_grades = Object.assign({}, r.hair_grades||{}, { [key]: el.value });
+      const { error } = await sb.from("di_reports").update(patch).eq("id", CTX.id);
+      if(error) throw error;
+      await addAudit(CTX.id, "Edited " + key);
+    } catch(e){ fail(e); }
+  });
+
+  $$("[data-trust]").forEach(b => b.onclick = async () => {
+    try {
+      await sb.from("di_reports").update({ trust:b.dataset.trust,
+        updated_at:new Date().toISOString() }).eq("id", CTX.id);
+      await addAudit(CTX.id, "Trust set to " + b.dataset.trust);
+      render();
+    } catch(e){ fail(e); }
+  });
+
+  const so = $("#signOff");
+  if(so) so.onclick = async () => {
+    if(!confirm("Sign off this report?\n\nIt will be locked and cannot be edited afterwards.")) return;
+    try {
+      const { error } = await sb.from("di_reports").update({ signed:true,
+        signed_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq("id", so.dataset.id);
+      if(error) throw error;
+      await addAudit(so.dataset.id, "Signed off by clinician");
+      toast("Signed off and locked."); render();
+    } catch(e){ fail(e); }
+  };
+
+  const dr = $("#delReport");
+  if(dr) dr.onclick = async () => {
+    if(!confirm("Delete this draft report and its photos?\n\nThis cannot be undone.")) return;
+    try {
+      const { data:phs } = await sb.from("di_photos").select("storage_path").eq("report_id", dr.dataset.id);
+      if(phs && phs.length) await sb.storage.from(BUCKET).remove(phs.map(x => x.storage_path));
+      await sb.from("di_reports").delete().eq("id", dr.dataset.id);
+      toast("Draft deleted."); go("patient", { id: dr.dataset.pid });
+    } catch(e){ fail(e); }
+  };
+
+  const pb = $("#printBtn");
+  if(pb) pb.onclick = () => window.print();
+
+  const ex = $("#exportAll");
+  if(ex) ex.onclick = async () => {
+    try {
+      const { data:pats } = await sb.from("di_patients").select("*");
+      const { data:reps } = await sb.from("di_reports").select("*");
+      const blob = new Blob([JSON.stringify({ exported:new Date().toISOString(),
+        patients:pats, reports:reps }, null, 2)], { type:"application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "auraa-derma-" + today() + ".json";
+      a.click();
+      toast("Downloaded. Keep it private.");
+    } catch(e){ fail(e); }
+  };
+}
+
+async function addAudit(reportId, what){
+  const { data:r } = await sb.from("di_reports").select("audit").eq("id", reportId).single();
+  const audit = ((r && r.audit) || []).concat([{ at:new Date().toISOString(), what }]);
+  await sb.from("di_reports").update({ audit }).eq("id", reportId);
+}
+
+/* shrink the photo in the browser before uploading — keeps it around 150 KB */
+function shrink(file, max=1600, q=0.85){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? res(b) : rej(new Error("could not read that image")), "image/jpeg", q);
+    };
+    img.onerror = () => rej(new Error("could not read that image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* one handler for every navigation button */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-open],[data-edit],[data-tab],[data-report],[data-newreport]");
+  if(!t) return;
+  if(t.dataset.open)        go("patient", { id:t.dataset.open });
+  else if(t.dataset.edit)   go("edit",    { id:t.dataset.edit });
+  else if(t.dataset.tab)    go(t.dataset.tab);
+  else if(t.dataset.report) go("report",  { id:t.dataset.report });
+  else if(t.dataset.newreport){
+    try {
+      const { data, error } = await sb.from("di_reports")
+        .insert({ patient_id:t.dataset.newreport,
+                  audit:[{ at:new Date().toISOString(), what:"Report created" }] })
+        .select("id").single();
+      if(error) throw error;
+      go("report", { id:data.id });
+    } catch(err){ fail(err); }
+  }
+});
+
+/* start */
+await checkSession();
+</script>
+</body>
+</html>
