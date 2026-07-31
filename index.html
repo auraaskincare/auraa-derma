@@ -130,6 +130,20 @@ table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-a
   border-radius:5px;display:block;background:var(--panelHi)}
 .hGrid figcaption{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;color:var(--muted);
   margin-top:5px;text-transform:uppercase;line-height:1.4}
+.pGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.pGrid figure{margin:0}
+.pGrid img{width:100%;aspect-ratio:3/4;object-fit:cover;border:1px solid var(--line);
+  border-radius:6px;display:block;background:var(--panelHi)}
+.pGrid figcaption{margin-top:6px;font-size:11.5px;line-height:1.45}
+.pGrid figcaption b{display:block;font-size:12.5px;color:#1A1A1A;margin-bottom:2px}
+.pGrid figcaption span{color:var(--muted);font-size:10.5px;line-height:1.4;display:block}
+.dials{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px;margin-top:4px}
+.dial{text-align:center}
+.dial .ring{width:100%;max-width:76px;height:auto}
+.dial .dv{font-family:var(--mono);font-size:26px;line-height:1.1;color:var(--roseDeep);padding-top:8px}
+.dial .dv span{font-size:13px}
+.dial .dl{font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.35}
+.dial .db{font-size:10.5px;margin-top:2px}
 .fine{font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 0}
 .hp{font-size:13px;line-height:1.6;margin:0}
 .hSug{border-left:2px solid var(--rose);padding:8px 0 8px 11px;margin-bottom:9px;font-size:13px;line-height:1.5}
@@ -146,7 +160,9 @@ table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-a
   .sub,.tiny{color:#333}
   #handout{border:none;border-radius:0;padding:0;max-width:none}
   #handout h3{break-after:avoid}
-  table.ht tr,.hGrid figure,.hSug{break-inside:avoid}
+  table.ht tr,.hGrid figure,.pGrid figure,.hSug,.dial{break-inside:avoid}
+  .pGrid{grid-template-columns:repeat(3,1fr)}
+  .dials{grid-template-columns:repeat(6,1fr)}
   .hFoot{break-inside:avoid}
   a{text-decoration:none;color:#000}
 }
@@ -728,6 +744,14 @@ const EXPLAIN = {
 const BANDS = v => v<25 ? ["Low","var(--ok)"] : v<50 ? ["Mild","var(--ok)"]
              : v<75 ? ["Moderate","var(--warn)"] : ["High","var(--bad)"];
 
+const PANEL_TEXT = {
+  spots:   ["Spots detected","Each circle is a discrete spot standing above the surrounding skin. Red rings mark the strongest."],
+  brown:   ["Brown / pigmented areas","Where melanin sits highest relative to the skin around it."],
+  red:     ["Red areas","Where blood and inflammation sit closest to the surface."],
+  texture: ["Texture","Where the surface is roughest."],
+  shine:   ["Shine / oil","Where the surface reflects most light."]
+};
+
 const NOTE_NO_REFERENCE = "<br><br><b>Note:</b> no colour reference was present in these photographs, "
   + "so these scores should not be compared directly against another day's photographs.";
 const NOTE_DEEP_TONE = "<br><br><b>Note:</b> deeper skin tones sit near the limit of what a camera can "
@@ -815,26 +839,63 @@ async function viewHandout(id){
       <tr><td>Assessed by</td><td>Dr. Fatima Sajeeda</td></tr>
     </tbody></table>
 
-    ${clinical.length||maps.length ? `<h3>Your photographs</h3>
+    ${clinical.length ? `<h3>Your photograph</h3>
       <div class="hGrid">
         ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}"><figcaption>As photographed</figcaption></figure>`).join("")}
-        ${maps.map(x=>`<figure><img data-path="${esc(x.storage_path)}">
-          <figcaption>${x.view_label.endsWith("pigment")?"Pigment map — darker means more":"Redness map — deeper means more"}</figcaption></figure>`).join("")}
-      </div>
-      ${maps.length?`<p class="fine">The two coloured maps are the same photograph with pigment and blood
-        separated by computer. This is what allows pigmentation and inflammation to be followed
-        separately rather than judged together by eye.</p>`:""}` : ""}
+      </div>` : ""}
 
-    ${shown.length ? `<h3>What was measured</h3>
-      <table class="ht"><thead><tr><th>Measure</th><th>Score</th><th>Band</th></tr></thead><tbody>
+    ${maps.length ? `<h3>What the analysis found</h3>
+      <div class="pGrid">
+        ${maps.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||["",""];
+          return `<figure><img data-path="${esc(x.storage_path)}">
+            <figcaption><b>${esc(t[0])}</b><span>${esc(t[1])}</span></figcaption></figure>`;}).join("")}
+      </div>
+      <p class="fine">Each panel is your own photograph with one finding highlighted by computer.
+      Pigment and blood are separated mathematically — which is what allows pigmentation and
+      inflammation to be followed independently, rather than judged together by eye.</p>` : ""}
+
+    ${ai.spotCount != null ? `<h3>Spot count</h3>
+      <div class="dials">
+        <div class="dial"><div class="dv">${ai.spotCount}</div><div class="dl">Spots detected</div></div>
+        <div class="dial"><div class="dv">${ai.spotAreaRatio}<span>%</span></div><div class="dl">Of face affected</div></div>
+        ${m.spotBands?`<div class="dial"><div class="dv">${m.spotBands.severe}</div><div class="dl">Marked severe</div></div>`:""}
+      </div>
+      ${m.spotBands?`<table class="ht" style="margin-top:12px">
+        <thead><tr><th>Severity</th><th>Quantity</th><th>Share</th></tr></thead><tbody>
+        ${[["Mild",m.spotBands.mild],["Moderate",m.spotBands.moderate],["Severe",m.spotBands.severe]]
+          .map(([n,v])=>`<tr><td>${n}</td><td class="mono">${v}</td>
+            <td class="mono">${ai.spotCount?Math.round(v/ai.spotCount*100):0}%</td></tr>`).join("")}
+        </tbody></table>`:""}
+      <p class="fine">Counted automatically from the photograph. Each marked spot stands measurably
+      above the surrounding skin, so the same count can be repeated at your next visit.</p>` : ""}
+
+    ${shown.length ? `<h3>Measured scores</h3>
+      <div class="dials">
+        ${shown.slice(0,6).map(x=>{const v=Number(ai[x.k]);const [band,col]=BANDS(v);
+          const e=EXPLAIN[x.k]||[x.label,""];
+          const C=2*Math.PI*26, off=C*(1-v/100);
+          return `<div class="dial">
+            <svg viewBox="0 0 64 64" class="ring">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#EFE7EB" stroke-width="7"/>
+              <circle cx="32" cy="32" r="26" fill="none" stroke="${col}" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}"
+                stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 32 32)"/>
+              <text x="32" y="37" text-anchor="middle" font-size="18"
+                font-family="var(--mono)" fill="#1A1A1A">${v}</text>
+            </svg>
+            <div class="dl">${esc(e[0])}</div>
+            <div class="db" style="color:${col}">${band}</div></div>`;}).join("")}
+      </div>
+      <table class="ht" style="margin-top:14px">
+      <thead><tr><th>Measure</th><th>Score</th><th>Band</th></tr></thead><tbody>
       ${shown.map(x=>{const v=Number(ai[x.k]);const [band,col]=BANDS(v);
         const e=EXPLAIN[x.k]||[x.label,""];
         return `<tr><td><b>${esc(e[0])}</b><div class="fine">${esc(e[1])}</div></td>
           <td class="mono" style="font-size:17px">${v}<span class="fine">/100</span></td>
           <td style="color:${col}">${band}</td></tr>`;}).join("")}
       </tbody></table>
-      <p class="fine">Scores run 0–100. They describe this photograph, under this lighting.
-      They are most meaningful when compared with your next visit.</p>` : ""}
+      <p class="fine">Scores run 0–100 and describe this photograph under this lighting.
+      Their real value is the comparison against your next visit.</p>` : ""}
 
     ${(ai._compare && ai._compare.length) ? `<h3>Area-by-area findings</h3>
       <table class="ht"><tbody>
@@ -991,12 +1052,14 @@ function analysePixels(px,w,h,manualRef){
   const mels=[],hems=[],lums=new Float32Array(total).fill(-1);
   let skin=0, dark=0, shine=0;
   const melMap=new Float32Array(total).fill(NaN), hemMap=new Float32Array(total).fill(NaN);
+  const mask=new Uint8Array(total), shineMap=new Float32Array(total).fill(NaN);
 
   for(let i=0;i<total;i++){
     let r=px[i*4],g=px[i*4+1],b=px[i*4+2];
     if(!isSkin(r,g,b)) continue;
-    skin++;
+    skin++; mask[i]=1;
     const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    shineMap[i]=mx/255;
     if(mx>248 && mx-mn<28){ shine++; continue; }
     r=Math.min(255,r*gain[0]); g=Math.min(255,g*gain[1]); b=Math.min(255,b*gain[2]);
     if(Math.min(r,g,b)<10) dark++;
@@ -1020,6 +1083,15 @@ function analysePixels(px,w,h,manualRef){
     tSum += Math.abs(lums[i]-lums[j]) + Math.abs(lums[i]-lums[k]); tN+=2;
   }
   const texture = tN ? tSum/tN : 0;
+  // per-pixel roughness, for the texture panel
+  const texMap=new Float32Array(total).fill(NaN);
+  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+    const i=y*w+x; if(lums[i]<0) continue;
+    let s=0,n=0;
+    for(const j of [i-1,i+1,i-w,i+w]) if(lums[j]>=0){ s+=Math.abs(lums[i]-lums[j]); n++; }
+    if(n) texMap[i]=s/n;
+  }
+  const spotRes = detectSpots(melMap, w, h, mask);
   const sc=(v,lo,hi)=>Math.round(Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100)));
 
   return {
@@ -1030,8 +1102,11 @@ function analysePixels(px,w,h,manualRef){
     whiteClipped: wr.clipped,
     skinPercent: Math.round(skin/total*100),
     lowConfidencePercent: Math.round(dark/Math.max(1,mels.length)*100),
-    maps: { melMap, hemMap, w, h },
+    maps: { melMap, hemMap, texMap, shineMap, mask, w, h },
+    spots: spotRes,
     metrics:{
+      spotCount:     spotRes.count,
+      spotAreaRatio: +(spotRes.areaPx/Math.max(1,spotRes.skinPx)*100).toFixed(2),
       pigment:       sc(mean(mels), 0.10, 1.60),
       pigmentUneven: sc(sd(mels),   0.00, 0.35),
       redness:       sc(mean(hems), 0.02, 0.70),
@@ -1108,25 +1183,143 @@ function samplePatch(ctx,x,y,half){
   return [med(R),med(G),med(B)];
 }
 
-/* Draw a map as a heatmap the patient can actually see. */
-function renderMap(map,w,h,which){
-  const vals=[]; for(let i=0;i<map.length;i++) if(!isNaN(map[i])) vals.push(map[i]);
-  if(!vals.length) return null;
-  vals.sort((a,b)=>a-b);
-  const lo=vals[Math.floor(vals.length*0.05)], hi=vals[Math.floor(vals.length*0.95)];
+/* ---- Panels ----
+   The face stays visible and findings are marked on top of it. A flat
+   recoloured blob tells a patient nothing; a marked face tells them
+   exactly where the problem is. */
+
+/* Average of a masked map within a radius — the local "normal" level. */
+function localBackground(map, w, h, mask, radius){
+  const W1=w+1;
+  const sum=new Float64Array(W1*(h+1)), cnt=new Float64Array(W1*(h+1));
+  for(let y=0;y<h;y++){
+    let rs=0, rc=0;
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      if(mask[i]){ rs+=map[i]; rc++; }
+      sum[(y+1)*W1+x+1]=sum[y*W1+x+1]+rs;
+      cnt[(y+1)*W1+x+1]=cnt[y*W1+x+1]+rc;
+    }
+  }
+  const out=new Float32Array(w*h).fill(NaN);
+  const at=(a,x,y)=>a[y*W1+x];
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=y*w+x; if(!mask[i]) continue;
+    const x0=Math.max(0,x-radius), y0=Math.max(0,y-radius);
+    const x1=Math.min(w,x+radius+1), y1=Math.min(h,y+radius+1);
+    const s=at(sum,x1,y1)-at(sum,x0,y1)-at(sum,x1,y0)+at(sum,x0,y0);
+    const c=at(cnt,x1,y1)-at(cnt,x0,y1)-at(cnt,x1,y0)+at(cnt,x0,y0);
+    out[i]= c>0 ? s/c : NaN;
+  }
+  return out;
+}
+
+/* Discrete, countable spots. Smoothed first: a real blemish spans several
+   pixels and survives; single-pixel noise does not. Without this step,
+   sensor noise on deep skin invents dozens of spots on a clear face. */
+function detectSpots(rawMap, w, h, mask, opts={}){
+  const map = localBackground(rawMap, w, h, mask, opts.smooth || 2);
+  const radius = opts.radius || Math.max(8, Math.round(Math.min(w,h)*0.06));
+  const bg = localBackground(map, w, h, mask, radius);
+  const diffs=[];
+  for(let i=0;i<w*h;i++) if(mask[i] && !isNaN(bg[i])) diffs.push(map[i]-bg[i]);
+  if(!diffs.length) return { spots:[], count:0, areaPx:0, skinPx:0, bands:{mild:0,moderate:0,severe:0} };
+  diffs.sort((a,b)=>a-b);
+  const sd = Math.abs(diffs[Math.floor(diffs.length*0.84)] - diffs[Math.floor(diffs.length*0.50)]);
+  const thr = Math.max(opts.floor || 0.030, sd*1.8);
+
+  const hot=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) if(mask[i] && !isNaN(bg[i]) && map[i]-bg[i] > thr) hot[i]=1;
+
+  const seen=new Uint8Array(w*h), spots=[];
+  const minA = opts.minArea || Math.max(8, Math.round(w*h*0.00010));
+  const maxA = opts.maxArea || Math.round(w*h*0.02);
+  const stack=new Int32Array(w*h);
+  for(let s=0;s<w*h;s++){
+    if(!hot[s]||seen[s]) continue;
+    let sp=0; stack[sp++]=s; seen[s]=1;
+    let n=0,sx=0,sy=0,peak=0;
+    while(sp){
+      const i=stack[--sp]; n++;
+      const x=i%w, y=(i/w)|0; sx+=x; sy+=y;
+      peak=Math.max(peak, map[i]-bg[i]);
+      if(x>0   && hot[i-1] && !seen[i-1]){ seen[i-1]=1; stack[sp++]=i-1; }
+      if(x<w-1 && hot[i+1] && !seen[i+1]){ seen[i+1]=1; stack[sp++]=i+1; }
+      if(y>0   && hot[i-w] && !seen[i-w]){ seen[i-w]=1; stack[sp++]=i-w; }
+      if(y<h-1 && hot[i+w] && !seen[i+w]){ seen[i+w]=1; stack[sp++]=i+w; }
+    }
+    if(n<minA||n>maxA) continue;
+    spots.push({ x:Math.round(sx/n), y:Math.round(sy/n), area:n, peak:+peak.toFixed(4),
+                 r:Math.max(3,Math.round(Math.sqrt(n/Math.PI)*1.6)) });
+  }
+  spots.sort((a,b)=>b.peak-a.peak);
+  let skinPx=0; for(let i=0;i<w*h;i++) if(mask[i]) skinPx++;
+  const bands={mild:0,moderate:0,severe:0};
+  for(const s of spots){
+    if(s.peak>thr*2.5) bands.severe++; else if(s.peak>thr*1.6) bands.moderate++; else bands.mild++;
+  }
+  return { spots, count:spots.length, areaPx:spots.reduce((a,s)=>a+s.area,0),
+           skinPx, threshold:+thr.toFixed(4), bands };
+}
+
+const PANEL_STYLES = {
+  brown:   { rgb:[150, 70, 10], label:"Brown areas" },
+  red:     { rgb:[210, 25, 35], label:"Red areas"   },
+  texture: { rgb:[0, 150, 165], label:"Texture"     },
+  shine:   { rgb:[235, 175, 0], label:"Shine"       }
+};
+
+/* Photo underneath, finding highlighted on top. */
+function renderPanel(basePx, w, h, map, mask, styleKey, spots){
+  const st=PANEL_STYLES[styleKey] || PANEL_STYLES.brown;
   const c=document.createElement("canvas"); c.width=w; c.height=h;
-  const ctx=c.getContext("2d"), im=ctx.createImageData(w,h);
-  for(let i=0;i<w*h;i++){
-    const v=map[i];
-    if(isNaN(v)){ im.data[i*4]=250; im.data[i*4+1]=247; im.data[i*4+2]=249; im.data[i*4+3]=255; continue; }
-    const t=Math.max(0,Math.min(1,(v-lo)/(hi-lo||1)));
-    let r,g,b;
-    if(which==="pigment"){ r=255-t*140; g=250-t*200; b=245-t*225; }   // cream -> deep brown
-    else                 { r=255-t*20;  g=250-t*215; b=248-t*180; }   // cream -> red
-    im.data[i*4]=r; im.data[i*4+1]=g; im.data[i*4+2]=b; im.data[i*4+3]=255;
+  const ctx=c.getContext("2d");
+  const im=ctx.createImageData(w,h);
+
+  let lo=0, hi=1;
+  if(map){
+    const bg=localBackground(map,w,h,mask,Math.max(8,Math.round(Math.min(w,h)*0.06)));
+    const d=[];
+    for(let i=0;i<w*h;i++) if(mask[i]&&!isNaN(bg[i])) d.push(map[i]-bg[i]);
+    d.sort((a,b)=>a-b);
+    lo=d[Math.floor(d.length*0.70)]; hi=d[Math.floor(d.length*0.995)];
+    if(!(hi>lo)) hi=lo+1e-6;
+    for(let i=0;i<w*h;i++){
+      // desaturate the face slightly so the colour overlay reads clearly
+      const r=basePx[i*4], g=basePx[i*4+1], b=basePx[i*4+2];
+      const y=0.299*r+0.587*g+0.114*b;
+      let R=r*0.55+y*0.45, G=g*0.55+y*0.45, B=b*0.55+y*0.45;
+      R=R*0.82+255*0.18; G=G*0.82+255*0.18; B=B*0.82+255*0.18;
+      if(mask[i] && !isNaN(bg[i])){
+        const t=Math.max(0,Math.min(1,((map[i]-bg[i])-lo)/(hi-lo)));
+        if(t>0){
+          const a=Math.pow(t,0.75)*0.88;
+          R=R*(1-a)+st.rgb[0]*a; G=G*(1-a)+st.rgb[1]*a; B=B*(1-a)+st.rgb[2]*a;
+        }
+      }
+      im.data[i*4]=R; im.data[i*4+1]=G; im.data[i*4+2]=B; im.data[i*4+3]=255;
+    }
+  } else {
+    for(let i=0;i<w*h;i++){
+      const r=basePx[i*4],g=basePx[i*4+1],b=basePx[i*4+2];
+      const y=0.299*r+0.587*g+0.114*b;
+      im.data[i*4]=r*0.5+y*0.5; im.data[i*4+1]=g*0.5+y*0.5; im.data[i*4+2]=b*0.5+y*0.5;
+      im.data[i*4+3]=255;
+    }
   }
   ctx.putImageData(im,0,0);
-  return c.toDataURL("image/png");
+
+  if(spots && spots.length){
+    ctx.lineWidth=Math.max(1.2, Math.min(w,h)/420);
+    for(const s of spots){
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = s.peak>0.09 ? "rgba(255,60,40,.30)" : "rgba(60,220,90,.26)";
+      ctx.fill();
+      ctx.strokeStyle = s.peak>0.09 ? "rgba(255,60,40,.95)" : "rgba(40,220,80,.95)";
+      ctx.stroke();
+    }
+  }
+  return c.toDataURL("image/jpeg", 0.88);
 }
 
 /* Show the photo and let the clinician tap the chart. Removes all guessing
@@ -1262,15 +1455,22 @@ async function runAnalysis(reportId, signedUrl, choice){
   if(choice && choice.mode==="none" && r.ok){ r.whiteReference=false; r.whiteRefRGB=null; }
   if(!r.ok) throw new Error(r.reason);
 
-  // Save the two maps so the patient report can show them later.
+  // Build the panels the patient actually looks at.
   if(r.maps){
+    const M=r.maps;
     const { data:rr } = await sb.from("di_reports").select("patient_id").eq("id", reportId).single();
-    for(const [kind,arr] of [["pigment",r.maps.melMap],["redness",r.maps.hemMap]]){
-      const url = renderMap(arr, r.maps.w, r.maps.h, kind);
+    const panels = [
+      ["spots",   renderPanel(px,w,h,null,           M.mask, "brown",   r.spots.spots)],
+      ["brown",   renderPanel(px,w,h,M.melMap,       M.mask, "brown",   null)],
+      ["red",     renderPanel(px,w,h,M.hemMap,       M.mask, "red",     null)],
+      ["texture", renderPanel(px,w,h,M.texMap,       M.mask, "texture", null)],
+      ["shine",   renderPanel(px,w,h,M.shineMap,     M.mask, "shine",   null)]
+    ];
+    for(const [kind,url] of panels){
       if(!url) continue;
       const blob = await (await fetch(url)).blob();
-      const path = `${rr.patient_id}/${reportId}/map-${kind}.png`;
-      await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/png", upsert:true });
+      const path = `${rr.patient_id}/${reportId}/panel-${kind}.jpg`;
+      await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/jpeg", upsert:true });
       const label = "map:"+kind;
       const { data:existing } = await sb.from("di_photos").select("id")
         .eq("report_id", reportId).eq("view_label", label);
@@ -1285,6 +1485,7 @@ async function runAnalysis(reportId, signedUrl, choice){
     _meta:{ whiteReference:r.whiteReference, whiteClipped:r.whiteClipped,
             whiteManual:r.whiteManual, whiteRefRGB:r.whiteRefRGB,
             skinPercent:r.skinPercent, lowConfidencePercent:r.lowConfidencePercent,
+            spotBands:r.spots?r.spots.bands:null,
             at:new Date().toISOString() }
   });
   await sb.from("di_reports").update({ ai, engine:"in-app photo analysis",
