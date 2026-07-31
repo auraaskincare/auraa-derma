@@ -12,8 +12,7 @@
 <style>
 :root{
   /* Auraa brand. Magenta and black on white, taken from the clinic logo.
-     Near-white page so skin tone in photos is judged accurately.
-     Variable names kept from the original design. */
+     Near-white page so skin tone in photos is judged accurately. */
   --ground:#FAF7F9; --panel:#FFFFFF; --panelHi:#F7F2F5; --line:#E8E2E5;
   --rose:#E5007D;        /* Auraa magenta */
   --roseDeep:#C40065;    /* darker magenta, for small text */
@@ -31,6 +30,7 @@ button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:16px}
 .hide{display:none!important}
 .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--roseDeep);text-transform:uppercase}
+.eyebrow.dim{color:var(--dim)}
 /* brand lockup, matching the clinic logo */
 .wordmark{font-family:var(--display);color:var(--rose);letter-spacing:.20em;
   font-size:19px;line-height:1;font-weight:400}
@@ -38,7 +38,6 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .services{font-family:var(--display);color:var(--cream);letter-spacing:.10em;
   font-size:9.5px;margin-top:7px;line-height:1}
 .services.big{font-size:12px;margin-top:11px}
-.eyebrow.dim{color:var(--dim)}
 h2.disp{font-family:var(--display);font-size:24px;font-weight:400;margin:6px 0 4px}
 .mono{font-family:var(--mono)}
 .sub{color:var(--muted);font-size:13px;line-height:1.55}
@@ -78,6 +77,7 @@ input.in:focus,select.in:focus,textarea.in:focus{outline:none;border-color:var(-
 .chip.you{border-color:var(--gold);color:var(--gold)}
 .chip.ok{border-color:var(--ok);color:var(--ok)}
 .chip.bad{border-color:var(--bad);color:var(--bad)}
+.chip.warn{border-color:var(--warn);color:var(--warn)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:13px;margin-bottom:9px;
   box-shadow:0 1px 2px rgba(42,32,35,.05)}
 .card.tap{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--cream)}
@@ -112,12 +112,43 @@ input.in:focus,select.in:focus,textarea.in:focus{outline:none;border-color:var(-
   background:#FFFFFF;border:1px solid var(--rose);border-radius:8px;padding:13px 15px;
   font-size:13.5px;line-height:1.45;box-shadow:0 6px 20px rgba(42,32,35,.16)}
 footer.legal{padding:20px 16px calc(20px + env(safe-area-inset-bottom));text-align:center}
+
+/* ---------- the patient handout ---------- */
+#handout{background:#fff;border:1px solid var(--line);border-radius:8px;padding:26px 24px;
+  max-width:780px;margin:0 auto;color:#1A1A1A}
+.hHead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+  border-bottom:2px solid var(--rose);padding-bottom:13px;flex-wrap:wrap}
+#handout h3{font-family:var(--display);font-size:16px;font-weight:400;margin:24px 0 9px;
+  color:var(--roseDeep);border-bottom:1px solid var(--line);padding-bottom:5px}
+table.ht{width:100%;border-collapse:collapse;font-size:13px}
+table.ht th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  color:var(--muted);text-transform:uppercase;padding:6px 8px 6px 0;border-bottom:1px solid var(--line)}
+table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+.hGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px}
+.hGrid figure{margin:0}
+.hGrid img{width:100%;aspect-ratio:3/4;object-fit:cover;border:1px solid var(--line);
+  border-radius:5px;display:block;background:var(--panelHi)}
+.hGrid figcaption{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;color:var(--muted);
+  margin-top:5px;text-transform:uppercase;line-height:1.4}
+.fine{font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 0}
+.hp{font-size:13px;line-height:1.6;margin:0}
+.hSug{border-left:2px solid var(--rose);padding:8px 0 8px 11px;margin-bottom:9px;font-size:13px;line-height:1.5}
+.hFoot{margin-top:26px;padding-top:13px;border-top:1px solid var(--line);font-size:11.5px;
+  line-height:1.6;color:var(--muted)}
+
 @media print{
+  @page{size:A4;margin:12mm}
   body{background:#fff;color:#000;padding:0}
   header.top,nav.tabs,.noprint{display:none!important}
+  main{padding:0;max-width:none}
   .card{background:#fff;border:1px solid #999;color:#000}
   .metric .mval,.metric .mval.locked{color:#000}
   .sub,.tiny{color:#333}
+  #handout{border:none;border-radius:0;padding:0;max-width:none}
+  #handout h3{break-after:avoid}
+  table.ht tr,.hGrid figure,.hSug{break-inside:avoid}
+  .hFoot{break-inside:avoid}
+  a{text-decoration:none;color:#000}
 }
 </style>
 </head>
@@ -283,6 +314,7 @@ async function render(){
     else if(TAB === "new")      v.innerHTML = await viewEdit(null);
     else if(TAB === "reports")  v.innerHTML = await viewReports();
     else if(TAB === "report")   v.innerHTML = await viewReport(CTX.id);
+    else if(TAB === "handout")  v.innerHTML = await viewHandout(CTX.id);
     else if(TAB === "settings") v.innerHTML = await viewSettings();
     window.scrollTo(0,0);
     await wireUp();
@@ -494,7 +526,8 @@ async function viewReport(id){
   const { data:r, error } = await sb.from("di_reports").select("*").eq("id", id).single();
   if(error) throw error;
   const { data:p } = await sb.from("di_patients").select("name").eq("id", r.patient_id).single();
-  const { data:photos } = await sb.from("di_photos").select("*").eq("report_id", id).order("created_at");
+  const { data:allPhotos } = await sb.from("di_photos").select("*").eq("report_id", id).order("created_at");
+  const photos = (allPhotos||[]).filter(p => !(p.view_label||"").startsWith("map:"));
   const ro = r.signed;
   const ai = r.ai || {}, grades = r.grades || {}, hair = r.hair || {}, hairG = r.hair_grades || {};
 
@@ -516,8 +549,12 @@ async function viewReport(id){
        Numbers are still measured, but they cannot be safely compared against another day —
        a warmer bulb alone can shift them by about 30 points. Put a plain sheet of printer
        paper at the edge of frame and retake.</div>` : ""}
-    ${m.whiteReference ? `<div class="banner ok"><b>White reference found.</b>
-       Lighting has been corrected, so these numbers can be compared with future visits.</div>` : ""}
+    ${m.whiteReference ? `<div class="banner ok">
+       <b>${m.whiteManual ? "You pointed at the reference." : "Reference found automatically."}</b>
+       Lighting has been corrected, so these numbers can be compared with future visits.
+       ${m.whiteRefRGB ? `<span class="tiny"> READING R${m.whiteRefRGB[0]} G${m.whiteRefRGB[1]} B${m.whiteRefRGB[2]}</span>` : ""}
+       ${!m.whiteManual ? `<br><span style="color:var(--muted)">If it guessed wrong it may have used
+       shiny skin instead of the chart. Tap Analyse again and point at the chart yourself.</span>` : ""}</div>` : ""}
     ${m.lowConfidencePercent > 40 ? `<div class="banner warn"><b>${m.lowConfidencePercent}% of the skin
        is very deeply pigmented</b> — near the limit of what a phone camera can separate.
        Treat the pigment figure as indicative and rely on your own grading.</div>` : ""}
@@ -622,8 +659,12 @@ async function viewReport(id){
   ${ro ? `<div class="card"><p class="sub" style="margin:0;color:var(--cream)">${esc(r.note||"—")}</p></div>`
        : `<textarea class="in" data-m="note:note" placeholder="Clinical impression, plan, what you told the patient…">${esc(r.note||"")}</textarea>`}
 
-  ${ro ? `<div class="row noprint" style="margin-top:22px"><button class="btn" id="printBtn">Print / save as PDF</button></div>`
-       : `<div class="row noprint" style="margin-top:22px">
+  <div class="row noprint" style="margin-top:22px">
+    <button class="btn" data-handout="${r.id}">Patient report →</button>
+  </div>
+
+  ${ro ? ``
+       : `<div class="row noprint" style="margin-top:12px">
             <button class="btn solid" id="signOff" data-id="${r.id}">Review complete — sign off</button></div>
           <p class="sub" style="margin-top:10px">Signing off locks this report permanently. To record changes later, start a new analysis.</p>
           <button class="btn danger noprint" id="delReport" data-id="${r.id}" data-pid="${r.patient_id}" style="margin-top:22px">Delete this draft</button>`}
@@ -633,6 +674,161 @@ async function viewReport(id){
       AURAA SKINCARE CLINIC · DECISION SUPPORT FOR THE TREATING CLINICIAN.<br>
       THE AI MEASURES. THE CLINICIAN DECIDES. THIS IS NOT A DIAGNOSIS.</p>
   </footer>`;
+}
+
+/* ===================================================================
+   THE PATIENT HANDOUT
+   A clean, branded page the patient keeps. Print it, or save as PDF
+   and send on WhatsApp. Deliberately plain-language: this is the one
+   document that leaves the clinic.
+   =================================================================== */
+const EXPLAIN = {
+  pigment:       ["Pigment level","How much melanin your skin is currently showing, measured across the whole face."],
+  pigmentUneven: ["Pigment evenness","How patchy that pigment is. This is the number that moves when melasma or dark marks improve."],
+  redness:       ["Redness","Blood and inflammation close to the surface — flushing, sensitivity, active acne."],
+  rednessUneven: ["Redness evenness","Whether redness sits in patches rather than spread evenly."],
+  oiliness:      ["Shine","How much light bounces off the surface — a guide to oiliness on the day."],
+  texture:       ["Texture","How smooth or rough the surface is."],
+  pores:         ["Pores","Visible pore openings."],
+  blemishes:     ["Blemishes","Spots and marks counted on the surface."],
+  hydration:     ["Dryness appearance","How dry the skin looks. This is appearance only — not a moisture reading."]
+};
+const BANDS = v => v<25 ? ["Low","var(--ok)"] : v<50 ? ["Mild","var(--ok)"]
+             : v<75 ? ["Moderate","var(--warn)"] : ["High","var(--bad)"];
+
+const NOTE_NO_REFERENCE = "<br><br><b>Note:</b> no colour reference was present in these photographs, "
+  + "so these scores should not be compared directly against another day's photographs.";
+const NOTE_DEEP_TONE = "<br><br><b>Note:</b> deeper skin tones sit near the limit of what a camera can "
+  + "separate. The pigment figure here is indicative, and Dr. Fatima's own grading takes precedence.";
+
+const SUGGESTIONS = [
+  { when:m => m.pigmentUneven>=50, title:"Uneven pigment",
+    options:"Chemical peel · laser toning · topical brightening protocol",
+    note:"Patch test first on Fitzpatrick IV–VI. Rebound pigmentation is the main risk." },
+  { when:m => m.pigment>=65, title:"High overall pigment",
+    options:"Daily broad-spectrum SPF · pigment-directed topicals",
+    note:"Sun protection outperforms every in-clinic option here." },
+  { when:m => m.redness>=55, title:"Raised redness",
+    options:"Barrier repair · anti-inflammatory protocol · settle before actives",
+    note:"Treat inflammation before starting peels or lasers." },
+  { when:m => m.oiliness>=35, title:"Oily / congested",
+    options:"Hydrafacial · salicylic peel · pore-directed protocol", note:"" },
+  { when:m => m.texture>=55, title:"Rough texture",
+    options:"Microneedling · resurfacing peel · PRP", note:"" },
+  { when:m => m.hydration>=55, title:"Looks dry",
+    options:"Hydrafacial · barrier and hydration protocol",
+    note:"Correct dryness before any active treatment." }
+];
+
+async function viewHandout(id){
+  const { data:r, error } = await sb.from("di_reports").select("*").eq("id", id).single();
+  if(error) throw error;
+  const { data:p } = await sb.from("di_patients").select("*").eq("id", r.patient_id).single();
+  const { data:all } = await sb.from("di_photos").select("*").eq("report_id", id).order("created_at");
+  const clinical = (all||[]).filter(x => !(x.view_label||"").startsWith("map:")).slice(0,3);
+  const maps     = (all||[]).filter(x =>  (x.view_label||"").startsWith("map:"));
+  const ai = r.ai || {}, m = ai._meta || {};
+  const shown = SKIN_AI.filter(x => ai[x.k] != null);
+
+  // change since the last signed visit
+  const { data:priors } = await sb.from("di_reports").select("report_date,ai")
+    .eq("patient_id", r.patient_id).eq("signed", true).lt("report_date", r.report_date)
+    .order("report_date",{ascending:false}).limit(1);
+  let progress = "";
+  if(priors && priors.length){
+    const pa = priors[0].ai || {};
+    const rows = shown.map(x => {
+      const a=Number(pa[x.k]), b=Number(ai[x.k]);
+      if(!isFinite(a)||!isFinite(b)||a===0) return "";
+      const d=Math.round((b-a)/a*100); if(d===0) return "";
+      const better = x.k==="hydration" ? d<0 : d<0;
+      return `<tr><td>${esc(EXPLAIN[x.k]?EXPLAIN[x.k][0]:x.label)}</td>
+        <td class="mono">${a} → ${b}</td>
+        <td class="mono" style="color:${better?"var(--ok)":"var(--bad)"}">${d>0?"↑":"↓"}${Math.abs(d)}%</td></tr>`;
+    }).join("");
+    if(rows) progress = `
+      <h3>Your progress since ${fmtDate(priors[0].report_date)}</h3>
+      <table class="ht"><tbody>${rows}</tbody></table>
+      <p class="fine">Measured from photographs taken under matched lighting. Not an estimate.</p>`;
+  }
+
+  const sug = SUGGESTIONS.filter(s => s.when(ai));
+
+  return `
+  <div class="noprint" style="margin-bottom:14px">
+    <button class="btn ghost sm" data-report="${id}">‹ Back to the analysis</button>
+    <div class="row" style="margin-top:10px">
+      <button class="btn solid" id="printHandout">Print / save as PDF</button>
+    </div>
+    <p class="sub" style="margin-top:9px">In the print box choose <b>Save as PDF</b> as the destination.
+      On iPhone, tap Share then Save to Files. ${r.signed?"":"<b style='color:var(--warn)'>This report is still a draft — sign it off before giving it to a patient.</b>"}</p>
+  </div>
+
+  <div id="handout">
+    <div class="hHead">
+      <div>
+        <div class="wordmark" style="font-size:26px">AURAA</div>
+        <div class="services" style="font-size:8.5px">SLIMMING &nbsp;|&nbsp; HAIR &nbsp;|&nbsp; SKIN &nbsp;|&nbsp; LASER</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--display);font-size:15px">Skin Analysis Report</div>
+        <div class="fine">${fmtDate(r.report_date)}</div>
+      </div>
+    </div>
+
+    <table class="ht" style="margin-top:14px"><tbody>
+      <tr><td style="width:34%">Name</td><td><b>${esc(p.name)}</b></td></tr>
+      ${p.age?`<tr><td>Age</td><td>${p.age}${p.sex?" · "+esc(p.sex):""}</td></tr>`:""}
+      ${r.grades&&r.grades.fitzpatrick?`<tr><td>Skin type</td><td>Fitzpatrick ${esc(r.grades.fitzpatrick)}</td></tr>`:""}
+      <tr><td>Assessed by</td><td>Dr. Fatima Sajeeda</td></tr>
+    </tbody></table>
+
+    ${clinical.length||maps.length ? `<h3>Your photographs</h3>
+      <div class="hGrid">
+        ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}"><figcaption>As photographed</figcaption></figure>`).join("")}
+        ${maps.map(x=>`<figure><img data-path="${esc(x.storage_path)}">
+          <figcaption>${x.view_label.endsWith("pigment")?"Pigment map — darker means more":"Redness map — deeper means more"}</figcaption></figure>`).join("")}
+      </div>
+      ${maps.length?`<p class="fine">The two coloured maps are the same photograph with pigment and blood
+        separated by computer. This is what allows pigmentation and inflammation to be followed
+        separately rather than judged together by eye.</p>`:""}` : ""}
+
+    ${shown.length ? `<h3>What was measured</h3>
+      <table class="ht"><thead><tr><th>Measure</th><th>Score</th><th>Band</th></tr></thead><tbody>
+      ${shown.map(x=>{const v=Number(ai[x.k]);const [band,col]=BANDS(v);
+        const e=EXPLAIN[x.k]||[x.label,""];
+        return `<tr><td><b>${esc(e[0])}</b><div class="fine">${esc(e[1])}</div></td>
+          <td class="mono" style="font-size:17px">${v}<span class="fine">/100</span></td>
+          <td style="color:${col}">${band}</td></tr>`;}).join("")}
+      </tbody></table>
+      <p class="fine">Scores run 0–100. They describe this photograph, under this lighting.
+      They are most meaningful when compared with your next visit.</p>` : ""}
+
+    ${progress}
+
+    ${r.note ? `<h3>Clinical note</h3><p class="hp">${esc(r.note)}</p>` : ""}
+
+    ${sug.length ? `<h3>Discussed options</h3>
+      ${sug.map(s=>`<div class="hSug"><b>${esc(s.title)}</b><div>${esc(s.options)}</div>
+        ${s.note?`<div class="fine">${esc(s.note)}</div>`:""}</div>`).join("")}
+      <p class="fine">Options for discussion, not a prescription. Suitability is decided by Dr. Fatima
+      after examination and review of your medical history.</p>` : ""}
+
+    <h3>What this analysis does not cover</h3>
+    <p class="hp">These measurements are taken from ordinary photographs. They describe the surface of
+    your skin. They do <b>not</b> measure pigment below the surface, collagen, bacteria within pores,
+    or hydration inside the skin — those require different equipment and none of them are reported here.
+    ${m.whiteReference === false ? NOTE_NO_REFERENCE : ""}
+    ${m.lowConfidencePercent > 40 ? NOTE_DEEP_TONE : ""}</p>
+
+    <div class="hFoot">
+      <div><b>Auraa Skincare Clinic</b> · Falcon Valley Road, opp. D-Mart, Film Nagar, Hyderabad 500008</div>
+      <div>+91 91008 76662 · auraaskincare.com</div>
+      <div class="fine" style="margin-top:8px">This report supports a consultation with your treating doctor.
+      It is not a diagnosis and does not replace medical advice.
+      ${r.signed?`Reviewed and signed by Dr. Fatima Sajeeda on ${fmtDate(r.signed_at)}.`:"DRAFT — NOT YET REVIEWED."}</div>
+    </div>
+  </div>`;
 }
 
 /* ===================================================================
@@ -739,9 +935,11 @@ function findWhiteReference(px,n){
   return { ref, clipped:false };
 }
 
-function analysePixels(px,w,h){
+function analysePixels(px,w,h,manualRef){
   const total=w*h;
-  const wr=findWhiteReference(px,total);
+  // If you tapped the chart yourself, that wins. Guessing is only a fallback.
+  const wr = manualRef ? { ref:manualRef, clipped:false, manual:true }
+                       : findWhiteReference(px,total);
   let gain=[1,1,1];
   if(wr.ref){
     const avg=(wr.ref[0]+wr.ref[1]+wr.ref[2])/3;
@@ -784,6 +982,8 @@ function analysePixels(px,w,h){
   return {
     ok:true,
     whiteReference: !!wr.ref,
+    whiteManual: !!wr.manual,
+    whiteRefRGB: wr.ref ? wr.ref.map(x=>Math.round(x)) : null,
     whiteClipped: wr.clipped,
     skinPercent: Math.round(skin/total*100),
     lowConfidencePercent: Math.round(dark/Math.max(1,mels.length)*100),
@@ -820,7 +1020,49 @@ function renderMap(map,w,h,which){
   return c.toDataURL("image/png");
 }
 
-async function runAnalysis(reportId, signedUrl){
+/* Show the photo and let the clinician tap the chart. Removes all guessing
+   about whether the app found the reference or a shiny forehead. */
+function pickWhitePoint(signedUrl){
+  return new Promise(resolve => {
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(26,26,26,.93);"+
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px";
+    ov.innerHTML=`
+      <p style="color:#fff;font-size:15px;text-align:center;max-width:340px;margin:0;line-height:1.5">
+        Tap your white chart or paper in the photo.</p>
+      <p style="color:#bbb;font-size:12.5px;text-align:center;max-width:340px;margin:0;line-height:1.5">
+        Tap the chart itself — not the wall, not skin.</p>
+      <img id="wpImg" style="max-width:100%;max-height:58vh;border-radius:8px;cursor:crosshair">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button id="wpAuto" style="padding:12px 16px;border-radius:6px;border:1px solid #777;
+          background:transparent;color:#eee;font-size:14px;min-height:46px">Find it automatically</button>
+        <button id="wpNone" style="padding:12px 16px;border-radius:6px;border:1px solid #777;
+          background:transparent;color:#eee;font-size:14px;min-height:46px">No chart in this photo</button>
+      </div>`;
+    document.body.appendChild(ov);
+    const im=ov.querySelector("#wpImg");
+    im.crossOrigin="anonymous"; im.src=signedUrl;
+    const done=v=>{ ov.remove(); resolve(v); };
+    im.onclick=e=>{
+      const rect=im.getBoundingClientRect();
+      const c=document.createElement("canvas");
+      c.width=im.naturalWidth; c.height=im.naturalHeight;
+      c.getContext("2d").drawImage(im,0,0);
+      const x=Math.round((e.clientX-rect.left)/rect.width*c.width);
+      const y=Math.round((e.clientY-rect.top)/rect.height*c.height);
+      const s=9, x0=Math.max(0,x-s), y0=Math.max(0,y-s);
+      const w=Math.min(s*2,c.width-x0), h=Math.min(s*2,c.height-y0);
+      const d=c.getContext("2d").getImageData(x0,y0,w,h).data;
+      let r=0,g=0,b=0,n=0;
+      for(let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; }
+      done({ mode:"manual", ref:[r/n,g/n,b/n] });
+    };
+    ov.querySelector("#wpAuto").onclick=()=>done({ mode:"auto" });
+    ov.querySelector("#wpNone").onclick=()=>done({ mode:"none" });
+  });
+}
+
+async function runAnalysis(reportId, signedUrl, choice){
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise((res,rej)=>{ img.onload=res; img.onerror=()=>rej(new Error("could not read that photo")); img.src=signedUrl; });
@@ -830,12 +1072,34 @@ async function runAnalysis(reportId, signedUrl){
   c.getContext("2d").drawImage(img,0,0,w,h);
   const px=c.getContext("2d").getImageData(0,0,w,h).data;
 
-  const r = analysePixels(px,w,h);
+  const r = (choice && choice.mode==="manual") ? analysePixels(px,w,h,choice.ref)
+          : (choice && choice.mode==="none")   ? analysePixels(px,w,h,[1,1,1])
+          :                                      analysePixels(px,w,h);
+  if(choice && choice.mode==="none" && r.ok){ r.whiteReference=false; r.whiteRefRGB=null; }
   if(!r.ok) throw new Error(r.reason);
+
+  // Save the two maps so the patient report can show them later.
+  if(r.maps){
+    const { data:rr } = await sb.from("di_reports").select("patient_id").eq("id", reportId).single();
+    for(const [kind,arr] of [["pigment",r.maps.melMap],["redness",r.maps.hemMap]]){
+      const url = renderMap(arr, r.maps.w, r.maps.h, kind);
+      if(!url) continue;
+      const blob = await (await fetch(url)).blob();
+      const path = `${rr.patient_id}/${reportId}/map-${kind}.png`;
+      await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/png", upsert:true });
+      const label = "map:"+kind;
+      const { data:existing } = await sb.from("di_photos").select("id")
+        .eq("report_id", reportId).eq("view_label", label);
+      if(!existing || !existing.length)
+        await sb.from("di_photos").insert({ report_id:reportId, patient_id:rr.patient_id,
+          storage_path:path, view_label:label });
+    }
+  }
 
   const { data:rep } = await sb.from("di_reports").select("ai").eq("id", reportId).single();
   const ai = Object.assign({}, rep.ai||{}, r.metrics, {
     _meta:{ whiteReference:r.whiteReference, whiteClipped:r.whiteClipped,
+            whiteManual:r.whiteManual, whiteRefRGB:r.whiteRefRGB,
             skinPercent:r.skinPercent, lowConfidencePercent:r.lowConfidencePercent,
             at:new Date().toISOString() }
   });
@@ -935,7 +1199,8 @@ async function wireUp(){
     try {
       const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(b.dataset.analyse, 600);
       if(error) throw error;
-      const res = await runAnalysis(CTX.id, data.signedUrl);
+      const choice = await pickWhitePoint(data.signedUrl);
+      const res = await runAnalysis(CTX.id, data.signedUrl, choice);
       // show the two maps immediately, before the page reloads
       const box = $("#overlayBox");
       if(box && res.maps){
@@ -1049,8 +1314,8 @@ async function wireUp(){
     } catch(e){ fail(e); }
   };
 
-  const pb = $("#printBtn");
-  if(pb) pb.onclick = () => window.print();
+  const ph = $("#printHandout");
+  if(ph) ph.onclick = () => window.print();
 
   const ex = $("#exportAll");
   if(ex) ex.onclick = async () => {
@@ -1092,12 +1357,13 @@ function shrink(file, max=1600, q=0.85){
 
 /* one handler for every navigation button */
 document.addEventListener("click", async e => {
-  const t = e.target.closest("[data-open],[data-edit],[data-tab],[data-report],[data-newreport]");
+  const t = e.target.closest("[data-open],[data-edit],[data-tab],[data-report],[data-newreport],[data-handout]");
   if(!t) return;
-  if(t.dataset.open)        go("patient", { id:t.dataset.open });
-  else if(t.dataset.edit)   go("edit",    { id:t.dataset.edit });
-  else if(t.dataset.tab)    go(t.dataset.tab);
-  else if(t.dataset.report) go("report",  { id:t.dataset.report });
+  if(t.dataset.open)         go("patient", { id:t.dataset.open });
+  else if(t.dataset.edit)    go("edit",    { id:t.dataset.edit });
+  else if(t.dataset.tab)     go(t.dataset.tab);
+  else if(t.dataset.handout) go("handout", { id:t.dataset.handout });
+  else if(t.dataset.report)  go("report",  { id:t.dataset.report });
   else if(t.dataset.newreport){
     try {
       const { data, error } = await sb.from("di_reports")
