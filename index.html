@@ -160,6 +160,11 @@ table.ht.mini td{padding:5px 6px 5px 0;font-size:12px}
   padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .rSev{font-family:var(--mono);font-size:8.5px;letter-spacing:.07em;border:1px solid;
   border-radius:3px;padding:3px 7px;white-space:nowrap}
+.rPlan{border-left:3px solid var(--rose);background:var(--panelHi);padding:11px 13px;
+  border-radius:0 6px 6px 0;font-size:13px;line-height:1.65;margin-bottom:12px;white-space:pre-wrap}
+.fLock{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.fCon{text-align:right;font-size:11.5px;line-height:1.65}
+@media(max-width:520px){.fCon{text-align:left}}
 .hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:18px 0 4px;
   background:var(--panelHi);border:1px solid var(--line);border-radius:8px;padding:16px}
 .hero .heroRing{width:118px;height:118px;flex-shrink:0}
@@ -249,6 +254,8 @@ const SUPABASE_URL = "https://pcmmldqcfbslnrmgpoez.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ukrht_UV0BRZB_CJ92ocWg_ZfO3wTV_";
 const ADMIN_EMAIL  = "auraa.skincare@gmail.com";
 const BUCKET       = "derma-photos";
+/* Change this one line if the handle is different. */
+const IG_HANDLE    = "@auraaskincare";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -744,9 +751,16 @@ async function viewReport(id){
   ${compareBlock}
   ${compare}
 
-  <div class="eyebrow dim" style="margin:26px 0 8px">Your note</div>
+  <div class="eyebrow dim" style="margin:26px 0 8px">Recommended treatment plan — shown to the patient</div>
+  ${ro ? `<div class="card"><p class="sub" style="margin:0;color:var(--cream);white-space:pre-wrap">${esc(r.plan||"—")}</p></div>`
+       : `<textarea class="in" data-m="plan:plan" style="min-height:110px"
+            placeholder="e.g.&#10;Session 1 — Salicylic peel, 2 weeks&#10;Session 2 — Microneedling with PRP, 4 weeks&#10;Home care — SPF 50 daily, niacinamide PM&#10;Review in 8 weeks">${esc(r.plan||"")}</textarea>
+          <p class="sub" style="margin-top:6px">This appears in the patient report under
+          <b>Recommended Treatment Plan</b>. Write it as you'd want the patient to read it.</p>`}
+
+  <div class="eyebrow dim" style="margin:26px 0 8px">Private clinical note — not shown to the patient</div>
   ${ro ? `<div class="card"><p class="sub" style="margin:0;color:var(--cream)">${esc(r.note||"—")}</p></div>`
-       : `<textarea class="in" data-m="note:note" placeholder="Clinical impression, plan, what you told the patient…">${esc(r.note||"")}</textarea>`}
+       : `<textarea class="in" data-m="note:note" placeholder="Your own impression. Stays in the record, never printed for the patient…">${esc(r.note||"")}</textarea>`}
 
   <div class="row noprint" style="margin-top:22px">
     <button class="btn" data-handout="${r.id}">Patient report →</button>
@@ -781,6 +795,7 @@ const EXPLAIN = {
   pores:         ["Pores","How prominent the pore openings are across the face."],
   blemishes:     ["Blemishes","How densely spots and marks are distributed."],
   wrinkles:      ["Wrinkles","How many lines and creases are present, and how deep."],
+  scarring:      ["Acne scarring","How much of the surface shows depressions consistent with acne scarring."],
   hydration:     ["Dryness appearance","How dry the skin looks. Appearance only — not a moisture reading."],
   healthScore:   ["Overall Skin Health Score","A plain average of the six measures above, inverted so a higher number is better skin."]
 };
@@ -791,6 +806,7 @@ const PANEL_TEXT = {
   spots:   ["Spot Analysis Map","Each circle is a discrete spot standing measurably above the surrounding skin. Red rings mark the strongest."],
   brown:   ["Pigmentation Analysis Map","Where melanin sits highest relative to the skin around it."],
   red:     ["Erythema Analysis Map","Where blood and inflammation sit closest to the surface."],
+  scar:    ["Acne Scar Analysis Map","Surface depressions consistent with acne scarring, each one marked."],
   wrinkle: ["Wrinkle Analysis Map","Lines and creases, separated from pores by their elongated shape."],
   pore:    ["Pore Analysis Map","Individual pore openings, separated from wrinkles by their round shape."],
   texture: ["Texture Analysis Map","Where the surface is roughest."],
@@ -831,6 +847,7 @@ const DIAL_SPEC = [
   { k:"wrinkles",      name:"Wrinkles",     obs:true  },
   { k:"redness",       name:"Redness",      obs:true  },
   { k:"blemishes",     name:"Acne / Spots", obs:true  },
+  { k:"scarring",      name:"Acne Scarring",obs:true  },
   { k:"oiliness",      name:"Oiliness",     obs:true  },
   { k:"hydration",     name:"Hydration",    obs:false },
   { k:"barrier",       name:"Skin Barrier", obs:false },
@@ -893,14 +910,16 @@ async function viewHandout(id){
     <div class="rHead">
       <div>
         <div class="wordmark" style="font-size:30px;color:#fff">AURAA</div>
-        <div style="font-family:var(--display);font-size:9.5px;letter-spacing:.16em;color:#E5A9CC;margin-top:5px">
-          SKIN INTELLIGENCE</div>
+        <div style="font-family:var(--display);font-size:8.5px;letter-spacing:.14em;color:#E5A9CC;margin-top:5px">
+          SLIMMING &nbsp;|&nbsp; HAIR &nbsp;|&nbsp; SKIN &nbsp;|&nbsp; LASER</div>
+        <div style="font-family:var(--display);font-style:italic;font-size:11px;color:#fff;margin-top:6px">
+          Discover the New You.</div>
       </div>
       <div style="text-align:center;flex:1;min-width:180px">
         <div style="font-family:var(--display);font-size:19px;color:#fff;letter-spacing:.02em">
           AI SKIN ANALYSIS REPORT</div>
-        <div style="font-size:10px;color:#E5A9CC;letter-spacing:.12em;margin-top:4px">
-          MEASURED. NOT GUESSED.</div>
+        <div style="font-size:9px;color:#E5A9CC;letter-spacing:.12em;margin-top:4px">
+          AURAA SKINCARE CLINIC &nbsp;·&nbsp; HYDERABAD</div>
       </div>
       <div class="rDate">
         <div style="font-size:8.5px;letter-spacing:.12em;color:#E5A9CC">ANALYSIS DATE</div>
@@ -1006,8 +1025,9 @@ async function viewHandout(id){
           return `<div class="rConc"><span>${esc(c.name)}${c.obs?"":' <span class="estTag">EST</span>'}</span>
           <span class="rSev" style="border-color:${col};color:${col}">${b.toUpperCase()}</span></div>`;}).join("")}
       </div>`:"<div></div>"}
-      ${sug.length?`<div>
-        <div class="rSection">TREATMENT OPTIONS</div>
+      ${(r.plan||sug.length)?`<div>
+        <div class="rSection">RECOMMENDED TREATMENT PLAN</div>
+        ${r.plan?`<div class="rPlan">${esc(r.plan).replace(/\n/g,"<br>")}</div>`:""}
         ${sug.map(s=>`<div class="hSug"><b>${esc(s.title)}</b><div>${esc(s.options)}</div>
           ${s.note?`<div class="fine">${esc(s.note)}</div>`:""}</div>`).join("")}
         <p class="fine">Options for discussion, not a prescription. Suitability is decided by
@@ -1045,10 +1065,6 @@ async function viewHandout(id){
       <tr><td><b>AI estimated</b></td>
         <td class="fine">Hydration, skin barrier, elasticity and skin age are inferred from visible-light
         features. They are indicative, not measurements.</td></tr>
-      <tr><td><b>Not covered at all</b></td>
-        <td class="fine">UV damage below the surface, porphyrins, collagen density and true hydration
-        need ultraviolet light, ultrasound or a probe against the skin. No number for any of them
-        appears anywhere in this report.</td></tr>
     </tbody></table>
     ${m.whiteReference===false?`<p class="fine"><b>Note:</b> no colour reference was in these
       photographs, so today's scores should not be compared directly with another day's.</p>`:""}
@@ -1057,11 +1073,28 @@ async function viewHandout(id){
       precedence.</p>`:""}
 
     <div class="hFoot">
-      <div><b>Auraa Skincare Clinic</b> · Falcon Valley Road, opp. D-Mart, Film Nagar, Hyderabad 500008</div>
-      <div>+91 91008 76662 · auraaskincare.com</div>
-      <div class="fine" style="margin-top:8px">This report supports a consultation with your treating
-      doctor. It is not a diagnosis and does not replace medical advice.
-      ${r.signed?`Reviewed and signed by Dr. Fatima Sajeeda on ${fmtDate(r.signed_at)}.`:"DRAFT — NOT YET REVIEWED."}</div>
+      <div class="fLock">
+        <div>
+          <div class="wordmark" style="font-size:20px">AURAA</div>
+          <div style="font-family:var(--display);font-style:italic;font-size:11px;color:var(--muted);margin-top:3px">
+            Discover the New You.</div>
+        </div>
+        <div class="fCon">
+          <div><b>Auraa Skincare Clinic</b></div>
+          <div>Falcon Valley Road, opp. D-Mart, Film Nagar, Hyderabad 500008</div>
+          <div>+91 91008 76662 &nbsp;·&nbsp; auraaskincare.com &nbsp;·&nbsp; ${esc(IG_HANDLE)}</div>
+        </div>
+      </div>
+      <div class="fine" style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+        <b>Disclaimer.</b> This report is generated from photographs taken during your consultation and is
+        intended to support discussion with your treating doctor. It is not a diagnosis, does not replace
+        clinical examination or medical advice, and should not be used to start or stop any treatment on its
+        own. Scores describe the images captured on the date shown and can be affected by lighting, camera
+        and skin condition on the day. Individual results vary. Any treatment discussed is subject to
+        assessment of your medical history, allergies and current medication by Dr. Fatima Sajeeda.
+        ${r.signed?`Reviewed and signed by Dr. Fatima Sajeeda on ${fmtDate(r.signed_at)}.`
+                  :"<b>DRAFT — NOT YET REVIEWED BY THE DOCTOR.</b>"}
+      </div>
     </div>
   </div>`;
 }
@@ -1224,12 +1257,27 @@ function analysePixels(px,w,h,manualRef){
   }
   const spotRes = detectSpots(melMap, w, h, mask);
 
-  // wrinkles (lines, wide spacing) and pores (dots, tight spacing)
+  // wrinkles (long lines), pores (tiny dots), scars (rounded depressions in between)
   const ridgeW = ridgeResponse(lums, w, h, mask, 3);
   const ridgeP = ridgeResponse(lums, w, h, mask, 1);
+  const ridgeS = ridgeResponse(lums, w, h, mask, 2);
   const wrinkles = connectedBlobs(ridgeW,w,h,mask,5,10,Math.round(w*h*0.02)).filter(isWrinkle);
   const pores    = connectedBlobs(ridgeP,w,h,mask,4,2,26).filter(isPore);
+  const scars    = connectedBlobs(ridgeS,w,h,mask,4.5,14,420).filter(isScar);
   const per1000 = n => n / Math.max(1, skin/1000);
+  // how much of the surface the depressions actually cover
+  const scarArea = scars.reduce((a,s)=>a+s.area,0) / Math.max(1,skin) * 100;
+
+  /* Shine, properly. Counting only blown-out white pixels reported 0% on
+     visibly oily skin, because true clipping is rare. Measure instead how
+     much of the face sits well above its own median brightness. */
+  const shineVals=[];
+  for(let i=0;i<total;i++) if(mask[i] && !isNaN(shineMap[i])) shineVals.push(shineMap[i]);
+  shineVals.sort((a,b)=>a-b);
+  const shineMed = shineVals.length ? shineVals[Math.floor(shineVals.length*0.5)] : 0;
+  let shiny=0;
+  for(let i=0;i<total;i++) if(mask[i] && !isNaN(shineMap[i]) && shineMap[i] > shineMed+0.085) shiny++;
+  const shinePct = shiny/Math.max(1,skin)*100;
 
   const sc=(v,lo,hi)=>Math.round(Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100)));
 
@@ -1241,23 +1289,30 @@ function analysePixels(px,w,h,manualRef){
     whiteClipped: wr.clipped,
     skinPercent: Math.round(skin/total*100),
     lowConfidencePercent: Math.round(dark/Math.max(1,mels.length)*100),
-    maps: { melMap, hemMap, texMap, shineMap, ridgeW, ridgeP, mask, w, h },
-    spots: spotRes, wrinkles, pores,
+    maps: { melMap, hemMap, texMap, shineMap, ridgeW, ridgeP, ridgeS, mask, w, h },
+    spots: spotRes, wrinkles, pores, scars,
     metrics: (function(){
+      const areaRatio = +(spotRes.areaPx/Math.max(1,spotRes.skinPx)*100).toFixed(2);
       const m = {
         spotCount:     spotRes.count,
-        spotAreaRatio: +(spotRes.areaPx/Math.max(1,spotRes.skinPx)*100).toFixed(2),
+        spotAreaRatio: areaRatio,
         wrinkleCount:  wrinkles.length,
         poreCount:     pores.length,
+        scarCount:     scars.length,
+        scarAreaRatio: +scarArea.toFixed(2),
         pigment:       sc(mean(mels), 0.10, 1.60),
         pigmentUneven: sc(sd(mels),   0.00, 0.35),
         redness:       sc(mean(hems), 0.02, 0.70),
         rednessUneven: sc(sd(hems),   0.00, 0.25),
-        oiliness:      Math.round(shine/Math.max(1,skin)*100),
-        texture:       sc(texture, 0.5, 12),
+        /* Driven by how much of the face is affected, not by a count per unit
+           area — a count washes out on a large face and reported "good" skin
+           on a face with two dozen visible lesions. */
+        blemishes:     sc(areaRatio, 0, 12),
+        oiliness:      sc(shinePct,  2, 34),
+        texture:       sc(texture,   0.4, 6.0),
+        scarring:      sc(scarArea,  0, 9),
         wrinkles:      sc(per1000(wrinkles.length), 0, 1.2),
-        pores:         sc(per1000(pores.length),    0, 14),
-        blemishes:     sc(per1000(spotRes.count),   0, 3.5)
+        pores:         sc(per1000(pores.length),    0, 14)
       };
       // Appearance of dryness: fine roughness, minus the sheen of well-oiled skin.
       m.hydration = Math.max(0, Math.min(100, Math.round(m.texture - m.oiliness*0.5)));
@@ -1271,7 +1326,7 @@ function analysePixels(px,w,h,manualRef){
       /* Overall score. Deliberately a plain average of six measured things,
          each inverted so higher means better skin. No hidden weighting —
          if a patient asks how it was calculated, you can tell them. */
-      const parts=[m.pigmentUneven, m.redness, m.texture, m.blemishes, m.wrinkles, m.pores];
+      const parts=[m.pigmentUneven, m.redness, m.texture, m.blemishes, m.wrinkles, m.pores, m.scarring];
       m.healthScore = Math.round(100 - parts.reduce((a,b)=>a+b,0)/parts.length);
       return m;
     })()
@@ -1468,6 +1523,10 @@ function connectedBlobs(mapArr,w,h,mask,thr,minA,maxA){
 }
 const isWrinkle = b => b.elong>=2.6 && b.len>=7;
 const isPore    = b => b.elong<2.0 && b.area<=26;
+/* Acne scarring reads as rounded surface depressions — bigger than a pore,
+   not long enough to be a line. Detected and mapped; deliberately NOT
+   classified as rolling / boxcar / ice-pick, which needs a trained model. */
+const isScar    = b => b.elong<2.6 && b.area>=14 && b.area<=420;
 
 const PANEL_STYLES = {
   brown:   { rgb:[150, 70, 10] },
@@ -1491,7 +1550,10 @@ function renderPanel(basePx, w, h, map, mask, styleKey, spots){
     const d=[];
     for(let i=0;i<w*h;i++) if(mask[i]&&!isNaN(bg[i])) d.push(map[i]-bg[i]);
     d.sort((a,b)=>a-b);
-    lo=d[Math.floor(d.length*0.70)]; hi=d[Math.floor(d.length*0.995)];
+    /* Start colouring at the 40th percentile, not the 70th. At 70% most of
+       the face received no colour at all and the panel looked like an
+       untouched photograph. */
+    lo=d[Math.floor(d.length*0.40)]; hi=d[Math.floor(d.length*0.99)];
     if(!(hi>lo)) hi=lo+1e-6;
     for(let i=0;i<w*h;i++){
       // desaturate the face slightly so the colour overlay reads clearly
@@ -1518,17 +1580,42 @@ function renderPanel(basePx, w, h, map, mask, styleKey, spots){
   }
   ctx.putImageData(im,0,0);
 
+  /* Mark what was actually detected. A heat wash is unreadable for small
+     features — pores and fine lines vanish into it. Marks are what make a
+     panel legible to a patient. */
   if(spots && spots.length){
-    ctx.lineWidth=Math.max(1.2, Math.min(w,h)/420);
+    const kind = styleKey==="pore" ? "pore" : styleKey==="wrinkle" ? "wrinkle"
+               : styleKey==="scar" ? "scar" : "spot";
+    ctx.lineWidth = Math.max(1, Math.min(w,h)/500);
     for(const s of spots){
-      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      ctx.fillStyle = s.peak>0.09 ? "rgba(255,60,40,.30)" : "rgba(60,220,90,.26)";
-      ctx.fill();
-      ctx.strokeStyle = s.peak>0.09 ? "rgba(255,60,40,.95)" : "rgba(40,220,80,.95)";
-      ctx.stroke();
+      if(kind==="pore"){
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, Math.max(1.6, (s.r||2)*0.9), 0, Math.PI*2);
+        ctx.fillStyle="rgba(30,110,235,.75)"; ctx.fill();
+      } else if(kind==="wrinkle"){
+        const L=Math.max(6,(s.len||8))/2;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, Math.max(3,L*0.8), 0, Math.PI*2);
+        ctx.strokeStyle="rgba(150,60,235,.95)";
+        ctx.lineWidth=Math.max(1.6, Math.min(w,h)/300);
+        ctx.stroke();
+      } else if(kind==="scar"){
+        const r=Math.max(3, Math.sqrt((s.area||12)/Math.PI)*1.7);
+        ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2);
+        ctx.fillStyle="rgba(0,175,180,.28)"; ctx.fill();
+        ctx.strokeStyle="rgba(0,165,175,.95)";
+        ctx.lineWidth=Math.max(1.3, Math.min(w,h)/420); ctx.stroke();
+      } else {
+        ctx.lineWidth=Math.max(1.2, Math.min(w,h)/420);
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = s.peak>0.09 ? "rgba(255,60,40,.30)" : "rgba(60,220,90,.26)";
+        ctx.fill();
+        ctx.strokeStyle = s.peak>0.09 ? "rgba(255,60,40,.95)" : "rgba(40,220,80,.95)";
+        ctx.stroke();
+      }
     }
   }
-  return c.toDataURL("image/jpeg", 0.88);
+  return c.toDataURL("image/jpeg", 0.9);
 }
 
 /* Show the photo and let the clinician tap the chart. Removes all guessing
@@ -1672,8 +1759,9 @@ async function runAnalysis(reportId, signedUrl, choice){
       ["spots",   renderPanel(px,w,h,null,       M.mask, "brown",   r.spots.spots)],
       ["brown",   renderPanel(px,w,h,M.melMap,   M.mask, "brown",   null)],
       ["red",     renderPanel(px,w,h,M.hemMap,   M.mask, "red",     null)],
-      ["wrinkle", renderPanel(px,w,h,M.ridgeW,   M.mask, "wrinkle", null)],
-      ["pore",    renderPanel(px,w,h,M.ridgeP,   M.mask, "pore",    null)],
+      ["scar",    renderPanel(px,w,h,null,       M.mask, "scar",    r.scars)],
+      ["wrinkle", renderPanel(px,w,h,null,       M.mask, "wrinkle", r.wrinkles)],
+      ["pore",    renderPanel(px,w,h,null,       M.mask, "pore",    r.pores)],
       ["texture", renderPanel(px,w,h,M.texMap,   M.mask, "texture", null)],
       ["shine",   renderPanel(px,w,h,M.shineMap, M.mask, "shine",   null)]
     ];
@@ -1866,6 +1954,7 @@ async function wireUp(){
       const { data:r } = await sb.from("di_reports").select("grades,hair,hair_grades").eq("id", CTX.id).single();
       const patch = { updated_at:new Date().toISOString() };
       if(kind === "note")          patch.note        = el.value;
+      else if(kind === "plan")     patch.plan        = el.value;
       else if(kind === "you")      patch.grades      = Object.assign({}, r.grades||{},      { [key]: el.value });
       else if(kind === "meas")     patch.hair        = Object.assign({}, r.hair||{},        { [key]: el.value });
       else if(kind === "hairYou")  patch.hair_grades = Object.assign({}, r.hair_grades||{}, { [key]: el.value });
