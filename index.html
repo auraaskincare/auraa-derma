@@ -166,6 +166,14 @@ table.ht.mini td{padding:5px 6px 5px 0;font-size:12px}
 .fLock{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .fCon{text-align:right;font-size:11.5px;line-height:1.65}
 @media(max-width:520px){.fCon{text-align:left}}
+.vGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:7px}
+.vChip{border:1px solid var(--line);border-radius:6px;padding:8px 9px;font-size:11.5px;line-height:1.35}
+.vChip span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.07em;
+  color:var(--dim);margin-top:3px;text-transform:uppercase}
+.vChip.done{border-color:var(--ok);background:rgba(47,125,95,.07)}
+.vChip.done span{color:var(--ok)}
+.vChip.shot{border-color:var(--warn)}
+.vChip.shot span{color:var(--warn)}
 .hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:18px 0 4px;
   background:var(--panelHi);border:1px solid var(--line);border-radius:8px;padding:16px}
 .hero .heroRing{width:118px;height:118px;flex-shrink:0}
@@ -295,6 +303,74 @@ function fail(e){
    you   = your clinical grade. Editable.
    meas  = a scalp measurement you take yourself.
    =================================================================== */
+/* The capture protocol as real records. Each analysed photo is stored against
+   its own view so nothing overwrites anything else. */
+const VIEWS = [
+  { k:"front",     name:"Front",               kind:"skin", side:null    },
+  { k:"left45",    name:"Left 45\u00B0",          kind:"skin", side:"left"  },
+  { k:"right45",   name:"Right 45\u00B0",         kind:"skin", side:"right" },
+  { k:"leftprof",  name:"Left profile",        kind:"skin", side:"left"  },
+  { k:"rightprof", name:"Right profile",       kind:"skin", side:"right" },
+  { k:"forehead",  name:"Chin down (forehead)",kind:"skin", side:null    },
+  { k:"jaw",       name:"Chin up (jaw/neck)",  kind:"skin", side:null    },
+  { k:"closeup",   name:"Close-up of concern", kind:"skin", side:null    },
+  { k:"vertex",    name:"Vertex (top)",        kind:"hair", side:null    },
+  { k:"hairline",  name:"Frontal hairline",    kind:"hair", side:null    },
+  { k:"crown",     name:"Crown",               kind:"hair", side:null    },
+  { k:"parting",   name:"Parting close-up",    kind:"hair", side:null    }
+];
+const viewName = k => (VIEWS.find(v=>v.k===k)||{}).name || k || "Unlabelled";
+
+/* Combine every analysed view into one assessment.
+   Scores are averaged across views. Counts take the worst single view and are
+   never summed, because the views overlap and the same lesion appears twice. */
+const SCORE_KEYS = ["pigment","pigmentUneven","redness","rednessUneven","oiliness",
+                    "texture","wrinkles","pores","blemishes","scarring","hydration",
+                    "barrier","elasticity"];
+const COUNT_KEYS = ["spotCount","wrinkleCount","poreCount","scarCount",
+                    "spotAreaRatio","scarAreaRatio"];
+
+function aggregateViews(views){
+  const keys=Object.keys(views||{});
+  if(!keys.length) return null;
+  const out={ _views:keys.length, _viewList:keys };
+  for(const k of SCORE_KEYS){
+    const vals=keys.map(v=>views[v][k]).filter(v=>v!=null && isFinite(v));
+    if(vals.length) out[k]=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+  }
+  for(const k of COUNT_KEYS){
+    const vals=keys.map(v=>views[v][k]).filter(v=>v!=null && isFinite(v));
+    if(vals.length){
+      out[k]=Math.round(Math.max.apply(null,vals)*100)/100;
+      out[k+"_perView"]=Object.fromEntries(keys.map(v=>[v,views[v][k]]));
+    }
+  }
+  const parts=[out.pigmentUneven,out.redness,out.texture,out.blemishes,
+               out.wrinkles,out.pores,out.scarring].filter(v=>v!=null);
+  if(parts.length) out.healthScore=Math.round(100-parts.reduce((a,b)=>a+b,0)/parts.length);
+  return out;
+}
+
+/* Left against right. Only meaningful because both sides were photographed
+   the same way, minutes apart, under the same light. */
+const ASYM_KEYS=[["pigment","pigmentation"],["pigmentUneven","uneven pigment"],
+                 ["redness","redness"],["blemishes","spots"],["scarring","scarring"]];
+function findAsymmetry(views){
+  const L=views.left45||views.leftprof, R=views.right45||views.rightprof;
+  if(!L||!R) return [];
+  const out=[];
+  for(const pair of ASYM_KEYS){
+    const k=pair[0], label=pair[1];
+    const a=L[k], b=R[k];
+    if(a==null||b==null) continue;
+    const diff=a-b;
+    if(Math.abs(diff)<12) continue;         // below this it is noise, not a finding
+    out.push({ key:k, label, heavier: diff>0 ? "left" : "right",
+               left:a, right:b, diff:Math.abs(diff) });
+  }
+  return out.sort((x,y)=>y.diff-x.diff);
+}
+
 const SKIN_AI = [
   { k:"healthScore",   label:"Overall Skin Health",  unit:"/100" },
   { k:"pigment",       label:"Pigment level",        unit:"/100" },
@@ -597,8 +673,10 @@ async function viewReport(id){
     ? `<div class="thumbs">${photos.map(ph =>
         `<div class="thumbwrap"><img data-path="${esc(ph.storage_path)}" alt="clinical photo">
          ${ro?"":`<button class="del noprint" data-delphoto="${ph.id}" data-path="${esc(ph.storage_path)}">✕</button>`}
-         ${ro?"":`<button class="btn ghost sm noprint" data-analyse="${esc(ph.storage_path)}"
-            style="width:100%;margin-top:5px;min-height:34px;font-size:12px">Analyse</button>
+         ${ro?"":`<button class="btn ghost sm noprint" data-analyse="${esc(ph.storage_path)}" data-view="${esc(ph.view_label||'front')}"
+            style="width:100%;margin-top:5px;min-height:34px;font-size:12px">Analyse skin</button>
+          <button class="btn ghost sm noprint" data-scalp="${esc(ph.storage_path)}" data-view="${esc(ph.view_label||'parting')}"
+            style="width:100%;margin-top:4px;min-height:34px;font-size:12px">Analyse scalp</button>
           <button class="btn ghost sm noprint" data-compare="${esc(ph.storage_path)}"
             style="width:100%;margin-top:4px;min-height:34px;font-size:12px">Compare areas</button>`}</div>`).join("")}</div>`
     : `<p class="sub">No photos yet.</p>`;
@@ -632,6 +710,24 @@ async function viewReport(id){
     <p class="tiny" style="line-height:1.8">BOTH AREAS COME FROM THE SAME PHOTOGRAPH UNDER THE SAME LIGHT.
       THIS COMPARISON HOLDS EVEN WITHOUT A WHITE REFERENCE.</p>` : "";
 
+  const doneSkin = Object.keys((r.ai&&r.ai._byView)||{});
+  const doneHair = Object.keys((r.hair&&r.hair._byView)||{});
+  const shotViews = new Set((allPhotos||[])
+    .filter(x=>!(x.view_label||"").startsWith("map:"))
+    .map(x=>x.view_label).filter(Boolean));
+  const coverage = `
+    <div class="eyebrow dim" style="margin:22px 0 8px">Views captured and analysed</div>
+    <div class="vGrid noprint">
+      ${VIEWS.map(v=>{
+        const shot=shotViews.has(v.k);
+        const done=(v.kind==="hair"?doneHair:doneSkin).includes(v.k);
+        const cls=done?"done":shot?"shot":"none";
+        return `<div class="vChip ${cls}">${esc(v.name)}
+          <span>${done?"analysed":shot?"photo only":"—"}</span></div>`;}).join("")}
+    </div>
+    <p class="sub">${doneSkin.length+doneHair.length} of ${VIEWS.length} views analysed.
+      Every analysed view is kept and combined — analysing one no longer replaces another.</p>`;
+
   const m = r.ai && r.ai._meta;
   const stale = m && (m.engineVersion || 0) < ENGINE_VERSION;
   const staleBanner = stale ? `
@@ -662,10 +758,32 @@ async function viewReport(id){
        ANALYSED ${fmtDate(m.at)}</p>` : "";
 
   const panels = (allPhotos||[]).filter(x => (x.view_label||"").startsWith("map:"));
+  const hairAI = r.hair || {};
+  const hairBlock = hairAI.hairHealthScore != null ? `
+    <div class="eyebrow dim" style="margin:26px 0 8px">Scalp &amp; hair — measured by the AI</div>
+    <div class="card">
+      <div class="dials">
+        <div class="dial"><div class="dv">${100-hairAI.densityScore}</div><div class="dl">Density score</div></div>
+        <div class="dial"><div class="dv">${hairAI.scalpVisible}<span>%</span></div><div class="dl">Scalp visible</div></div>
+        <div class="dial"><div class="dv">${hairAI.shaftCount}</div><div class="dl">Shafts counted</div></div>
+        <div class="dial"><div class="dv">${hairAI.flakeCount}</div><div class="dl">Flake patches</div></div>
+      </div>
+      <table class="ht" style="margin-top:14px"><tbody>
+        <tr><td>Hair coverage</td><td class="mono">${hairAI.hairCoverage}%</td></tr>
+        ${hairAI.partingPx!=null?`<tr><td>Parting width</td><td class="mono">${hairAI.partingPx} px
+          <span class="tiny">RELATIVE — SAME DISTANCE EACH VISIT</span></td></tr>`:""}
+        <tr><td>Shaft thickness spread</td><td class="mono">
+          fine ${hairAI.shaftFine}% · medium ${hairAI.shaftMedium}% · coarse ${hairAI.shaftCoarse}%</td></tr>
+      </tbody></table>
+      <p class="tiny" style="margin:14px 0 0;line-height:1.7">
+        MEASURED FROM THE PHOTOGRAPH. FOLLICLES PER CM², MINIATURISATION PERCENTAGE AND SHAFT DIAMETER
+        IN MICRONS ARE NOT REPORTED — THOSE NEED DERMOSCOPY WITH A CALIBRATED SCALE.
+        PATTERN DIAGNOSIS REMAINS YOURS.</p>
+    </div>` : "";
   const overlays = panels.length ? `
     <div class="eyebrow dim" style="margin:24px 0 8px">Analysis maps</div>
     <div class="pGrid">
-      ${panels.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||["",""];
+      ${panels.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||SCALP_PANEL_TEXT[k]||["",""];
         return `<figure><img data-path="${esc(x.storage_path)}">
           <figcaption><b>${esc(t[0])}</b><span>${esc(t[1])}</span></figcaption></figure>`;}).join("")}
     </div>` : "";
@@ -706,10 +824,16 @@ async function viewReport(id){
   <div class="eyebrow dim" style="margin:20px 0 8px">Photos</div>
   ${photoHTML}
   ${ro?"":`
-  <label class="btn ghost noprint" style="margin-top:9px">
-    Take or add a photo
-    <input type="file" accept="image/*" capture="environment" id="photoIn" multiple style="display:none">
-  </label>`}
+  <div class="noprint" style="margin-top:12px">
+    <label class="fld"><span>Which view is this photograph?</span>
+      <select class="in" id="viewPick">
+        ${VIEWS.map(v=>`<option value="${v.k}">${esc(v.name)}${v.kind==="hair"?" — scalp":""}</option>`).join("")}
+      </select></label>
+    <label class="btn ghost" style="margin:0">
+      Take or add photo for this view
+      <input type="file" accept="image/*" capture="environment" id="photoIn" multiple style="display:none">
+    </label>
+  </div>`}
 
   ${quality}
   ${overlays}
@@ -760,6 +884,8 @@ async function viewReport(id){
     <p class="tiny" style="margin:14px 0 0;line-height:1.7">THE SKIN-SCAN ENGINE DOES NOT ANALYSE SCALP OR HAIR. THESE ARE YOUR OWN READINGS.</p>
   </div>
 
+  ${coverage}
+  ${hairBlock}
   ${compareBlock}
   ${compare}
 
@@ -790,6 +916,261 @@ async function viewReport(id){
       THE AI MEASURES. THE CLINICIAN DECIDES. THIS IS NOT A DIAGNOSIS.</p>
   </footer>`;
 }
+
+
+/* ===================================================================
+   HAIR & SCALP ENGINE
+   Separate from the skin engine by design: different measurements,
+   different failure modes, different clinical meaning.
+
+   Measured here: how much scalp shows through, parting width, hair
+   shafts crossing the parting and their relative thickness, scalp
+   redness, and flaking.
+
+   NOT measured, and deliberately absent: follicular density per cm2,
+   miniaturisation percentage, terminal-to-vellus ratio and shaft
+   diameter in microns. Those need dermoscopy with a calibrated scale.
+   Pattern diagnoses (telogen effluvium, alopecia areata, scarring
+   alopecia) are clinical judgements and are recorded by the doctor,
+   never produced by this code.
+   =================================================================== */
+/* ==================================================================
+   Scalp & hair measurement from an ordinary photograph.
+   Every pixel is classified as hair, visible scalp, or neither.
+   Coverage is then the ratio between the first two — which is what
+   actually changes when treatment works.
+   ================================================================== */
+function isScalpTone(r,g,b){
+  const sum=r+g+b;
+  if(sum<70||sum>720) return false;
+  const rn=r/sum, gn=g/sum, bn=b/sum;
+  if(rn<0.365||rn>0.56) return false;
+  if(gn<0.26||gn>0.40) return false;
+  if(bn>0.335) return false;
+  if(r<g||g<b) return false;
+  return true;
+}
+
+/* Otsu: find the brightness that best splits the photo into two groups.
+   Hair and scalp differ in brightness far more reliably than in colour —
+   dark hair is nearly neutral, so a colour test alone calls it skin. */
+function otsu(vals){
+  const hist=new Float64Array(256);
+  for(const v of vals) hist[Math.max(0,Math.min(255,Math.round(v)))]++;
+  const total=vals.length;
+  let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sumB=0,wB=0,best=0,thr=128;
+  for(let t=0;t<256;t++){
+    wB+=hist[t]; if(!wB) continue;
+    const wF=total-wB; if(!wF) break;
+    sumB+=t*hist[t];
+    const mB=sumB/wB, mF=(sum-sumB)/wF;
+    const between=wB*wF*(mB-mF)*(mB-mF);
+    if(between>best){ best=between; thr=t; }
+  }
+  return thr;
+}
+
+function classify(px,w,h){
+  const n=w*h, lum=new Float32Array(n);
+  const all=[];
+  for(let i=0;i<n;i++){
+    const y=0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2];
+    lum[i]=y; all.push(y);
+  }
+  const thr=otsu(all);
+  const kind=new Uint8Array(n);
+  let scalp=0, hair=0, brightSum=0;
+  for(let i=0;i<n;i++){
+    const r=px[i*4],g=px[i*4+1],b=px[i*4+2];
+    if(lum[i] > thr){
+      if(isScalpTone(r,g,b)){ kind[i]=1; scalp++; brightSum+=lum[i]; }
+    } else {
+      const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+      if(mx-mn <= mx*0.60){ kind[i]=2; hair++; }
+    }
+  }
+  const analysed=scalp+hair;
+  const scalpLum = scalp ? brightSum/scalp : thr*1.2;
+  /* A photo of nothing but hair still has a bright half and a dark half, and
+     Otsu will happily split it — reporting 50% scalp on a full head of hair.
+     Require the two groups to be genuinely far apart in brightness before any
+     coverage figure is allowed out. */
+  let hairSum=0;
+  for(let i=0;i<n;i++) if(kind[i]===2) hairSum+=lum[i];
+  const hairLum = hair ? hairSum/hair : 0;
+  const separation = hairLum>0 ? scalpLum/hairLum : 0;
+  const separable = scalp>n*0.004 && hair>n*0.004 && separation>=1.55;
+  return { kind, scalp, hair, analysed, scalpLum, hairLum,
+           separation:+separation.toFixed(2), threshold:thr, separable,
+           coverage: analysed ? +(hair/analysed*100).toFixed(1) : null,
+           scalpVisible: analysed ? +(scalp/analysed*100).toFixed(1) : null };
+}
+
+/* Parting width: the widest continuous run of visible scalp per row.
+   Reported in pixels — comparable between visits at a fixed distance,
+   NOT a millimetre measurement. */
+function partingWidth(kind,w,h){
+  const runs=[];
+  for(let y=0;y<h;y++){
+    let best=0,cur=0;
+    for(let x=0;x<w;x++){
+      if(kind[y*w+x]===1){ cur++; if(cur>best) best=cur; } else cur=0;
+    }
+    if(best>0) runs.push(best);
+  }
+  if(runs.length<h*0.15) return null;
+  runs.sort((a,b)=>a-b);
+  return { median:runs[Math.floor(runs.length*0.5)], p90:runs[Math.floor(runs.length*0.9)] };
+}
+/* Flakes: small bright near-neutral specks sitting on scalp. */
+function detectFlakes(px,kind,w,h,scalpLum){
+  const n=w*h, hot=new Uint8Array(n);
+  const nearScalp=(i)=>{
+    const x=i%w,y=(i/w)|0;
+    for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
+      const xx=x+dx, yy=y+dy;
+      if(xx<0||yy<0||xx>=w||yy>=h) continue;
+      if(kind[yy*w+xx]===1) return true;
+    }
+    return false;
+  };
+  for(let i=0;i<n;i++){
+    if(kind[i]===2) continue;                  // inside hair, not scalp flaking
+    const r=px[i*4],g=px[i*4+1],b=px[i*4+2];
+    const y=0.299*r+0.587*g+0.114*b;
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    // a flake is brighter than the scalp around it and close to colourless
+    if(y > scalpLum*1.22 && (mx-mn) < mx*0.22 && nearScalp(i)) hot[i]=1;
+  }
+  const seen=new Uint8Array(n), out=[], stack=new Int32Array(n);
+  for(let s=0;s<n;s++){
+    if(!hot[s]||seen[s]) continue;
+    let sp=0; stack[sp++]=s; seen[s]=1; let c=0,sx=0,sy=0;
+    while(sp){
+      const i=stack[--sp]; c++; sx+=i%w; sy+=(i/w)|0;
+      const x=i%w,y=(i/w)|0;
+      if(x>0&&hot[i-1]&&!seen[i-1]){seen[i-1]=1;stack[sp++]=i-1;}
+      if(x<w-1&&hot[i+1]&&!seen[i+1]){seen[i+1]=1;stack[sp++]=i+1;}
+      if(y>0&&hot[i-w]&&!seen[i-w]){seen[i-w]=1;stack[sp++]=i-w;}
+      if(y<h-1&&hot[i+w]&&!seen[i+w]){seen[i+w]=1;stack[sp++]=i+w;}
+    }
+    if(c>=3 && c<=800) out.push({x:Math.round(sx/c),y:Math.round(sy/c),area:c,
+                                 r:Math.max(2,Math.round(Math.sqrt(c/Math.PI)*1.7))});
+  }
+  let scalpPx=0; for(let i=0;i<n;i++) if(kind[i]===1) scalpPx++;
+  return { flakes:out, count:out.length,
+           coverage: scalpPx ? +(out.reduce((a,f)=>a+f.area,0)/scalpPx*100).toFixed(2) : 0 };
+}
+
+/* Hair shafts crossing visible scalp. Widths are in pixels — comparable
+   between visits at a fixed distance, never presented as microns. */
+function detectShafts(px, kind, w, h){
+  const lum=new Float32Array(w*h).fill(-1);
+  const mask=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){
+    if(kind[i]===0) continue;
+    mask[i]=1;
+    lum[i]=0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2];
+  }
+  const ridge=ridgeResponse(lum,w,h,mask,2);
+  const blobs=connectedBlobs(ridge,w,h,mask,6,8,Math.round(w*h*0.02))
+    .filter(b=>b.elong>=2.2 && b.len>=6);
+  const widths=blobs.map(b=>Math.max(1, b.area/Math.max(1,b.len)));
+  widths.sort((a,b)=>a-b);
+  const med = widths.length ? widths[Math.floor(widths.length*0.5)] : 0;
+  let fine=0, medium=0, coarse=0;
+  for(const wd of widths){
+    if(wd < med*0.80) fine++; else if(wd > med*1.25) coarse++; else medium++;
+  }
+  const tot=Math.max(1,widths.length);
+  return { shafts:blobs, count:blobs.length, medianWidth:+med.toFixed(2),
+           fine:+(fine/tot*100).toFixed(1), medium:+(medium/tot*100).toFixed(1),
+           coarse:+(coarse/tot*100).toFixed(1) };
+}
+
+function analyseScalpPhoto(px,w,h){
+  const cls = classify(px,w,h);
+  if(!cls.separable)
+    return { ok:false, reason:"Scalp and hair could not be told apart in this photo. "
+      + "Part the hair with a comb and hold it open, and make sure the scalp is lit." };
+
+  const flakes  = detectFlakes(px, cls.kind, w, h, cls.scalpLum);
+  const shafts  = detectShafts(px, cls.kind, w, h);
+  const parting = partingWidth(cls.kind, w, h);
+
+  // redness of the visible scalp only
+  const hems=[]; const hemMap=new Float32Array(w*h).fill(NaN);
+  for(let i=0;i<w*h;i++){
+    if(cls.kind[i]!==1) continue;
+    const o=unmix(px[i*4],px[i*4+1],px[i*4+2]);
+    hems.push(o.hem); hemMap[i]=o.hem;
+  }
+  const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  const sc=(v,lo,hi)=>Math.round(Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100)));
+
+  const m = {
+    hairCoverage:  cls.coverage,
+    scalpVisible:  cls.scalpVisible,
+    partingPx:     parting ? parting.median : null,
+    shaftCount:    shafts.count,
+    shaftFine:     shafts.fine,
+    shaftMedium:   shafts.medium,
+    shaftCoarse:   shafts.coarse,
+    flakeCount:    flakes.count,
+    // severity scores, higher = worse
+    densityScore:  sc(cls.scalpVisible, 4, 45),
+    scalpRedness:  sc(mean(hems), 0.02, 0.70),
+    dandruff:      sc(flakes.coverage, 0, 8),
+    breakage:      sc(shafts.fine, 15, 55)
+  };
+  const parts=[m.densityScore, m.scalpRedness, m.dandruff, m.breakage];
+  m.hairHealthScore = Math.round(100 - parts.reduce((a,b)=>a+b,0)/parts.length);
+
+  return { ok:true, metrics:m, cls, flakes, shafts, parting,
+           maps:{ hemMap, kind:cls.kind, w, h } };
+}
+
+/* Scalp panels: scalp-visibility, flaking, shafts, redness. */
+function renderScalpPanel(px,w,h,cls,kindWanted,marks,rgb){
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx=c.getContext("2d"); const im=ctx.createImageData(w,h);
+  for(let i=0;i<w*h;i++){
+    const r=px[i*4],g=px[i*4+1],b=px[i*4+2];
+    const y=0.299*r+0.587*g+0.114*b;
+    let R=r*0.5+y*0.5, G=g*0.5+y*0.5, B=b*0.5+y*0.5;
+    R=R*0.85+255*0.15; G=G*0.85+255*0.15; B=B*0.85+255*0.15;
+    if(kindWanted && cls.kind[i]===kindWanted){
+      const a=0.55;
+      R=R*(1-a)+rgb[0]*a; G=G*(1-a)+rgb[1]*a; B=B*(1-a)+rgb[2]*a;
+    }
+    im.data[i*4]=R; im.data[i*4+1]=G; im.data[i*4+2]=B; im.data[i*4+3]=255;
+  }
+  ctx.putImageData(im,0,0);
+  if(marks && marks.length){
+    ctx.lineWidth=Math.max(1,Math.min(w,h)/450);
+    for(const s of marks){
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r||3,0,Math.PI*2);
+      ctx.fillStyle="rgba(255,255,255,.45)"; ctx.fill();
+      ctx.strokeStyle="rgba(0,140,190,.95)"; ctx.stroke();
+    }
+  }
+  return c.toDataURL("image/jpeg",0.9);
+}
+
+const SCALP_PANEL_TEXT = {
+  "scalp-visible": ["Scalp Visibility Map","Where scalp shows through the hair. This is what shrinks when density improves."],
+  "scalp-flake":   ["Flaking Map","Bright scaling sitting on the scalp, each patch marked."],
+  "scalp-shaft":   ["Hair Shaft Map","Individual shafts crossing the parting, used for the thickness spread."],
+  "scalp-red":     ["Scalp Redness Map","Where inflammation sits closest to the surface."]
+};
+
+const HAIR_DIALS = [
+  { k:"densityScore", name:"Density",       obs:false },
+  { k:"scalpRedness", name:"Scalp health",  obs:true  },
+  { k:"dandruff",     name:"Flaking",       obs:true  },
+  { k:"breakage",     name:"Shaft quality", obs:false }
+];
 
 /* ===================================================================
    THE PATIENT HANDOUT
@@ -1004,10 +1385,42 @@ async function viewHandout(id){
     <div class="pGrid">
       ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}">
         <figcaption><b>Visible Light</b><span>The photograph as taken</span></figcaption></figure>`).join("")}
-      ${maps.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||["",""];
+      ${maps.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||SCALP_PANEL_TEXT[k]||["",""];
         return `<figure><img data-path="${esc(x.storage_path)}">
           <figcaption><b>${esc(t[0])}</b><span>${esc(t[1])}</span></figcaption></figure>`;}).join("")}
     </div>`:""}
+
+    <!-- ===== per view ===== -->
+    ${(ai._byView && Object.keys(ai._byView).length>1)?(function(){
+      const vk=Object.keys(ai._byView);
+      const rows=[["pigmentUneven","Pigmentation"],["redness","Redness"],
+                  ["texture","Texture"],["blemishes","Acne / spots"],
+                  ["scarring","Scarring"],["pores","Pores"]];
+      return `<div class="rSection">VIEW BY VIEW</div>
+      <table class="ht"><thead><tr><th>Measure</th>
+        ${vk.map(v=>`<th>${esc(viewName(v))}</th>`).join("")}</tr></thead><tbody>
+      ${rows.map(([k,label])=>{
+        const cells=vk.map(v=>{const s=ai._byView[v][k];
+          if(s==null) return `<td class="mono">—</td>`;
+          const q=100-s, c=QBAND(q)[1];
+          return `<td class="mono" style="color:${c}">${q}</td>`;});
+        return `<tr><td>${label}</td>${cells.join("")}</tr>`;}).join("")}
+      </tbody></table>
+      <p class="fine">Each column is a separate photograph, measured on its own. Higher is better.
+      The dials above are the average across all views.</p>`;})():""}
+
+    <!-- ===== asymmetry ===== -->
+    ${(ai._asym && ai._asym.length)?`<div class="rSection">LEFT AND RIGHT COMPARED</div>
+      <table class="ht"><tbody>
+      ${ai._asym.map(a=>`<tr>
+        <td style="width:34%"><b>${esc(a.label.charAt(0).toUpperCase()+a.label.slice(1))}</b></td>
+        <td><b style="color:var(--roseDeep)">${a.heavier==="left"?"Left side heavier":"Right side heavier"}</b>
+        <div class="fine">Left ${100-a.left} · Right ${100-a.right} — a difference of ${a.diff} points.
+        A consistent one-sided pattern often points to something external:
+        sun through a car window, a sleeping side, or how product is applied.</div></td></tr>`).join("")}
+      </tbody></table>
+      <p class="fine">Only possible because both sides were photographed the same way, minutes apart,
+      under the same light.</p>`:""}
 
     <!-- ===== spots ===== -->
     ${ai.spotCount!=null?`<div class="rSection">LESION COUNT</div>
@@ -1023,6 +1436,39 @@ async function viewHandout(id){
         .map(([n,v])=>`<tr><td>${n}</td><td class="mono">${v}</td>
         <td class="mono">${ai.spotCount?Math.round(v/ai.spotCount*100):0}%</td></tr>`).join("")}
       </tbody></table>`:""}`:""}
+
+    <!-- ===== hair ===== -->
+    ${(r.hair && r.hair.hairHealthScore!=null)?(function(){
+      const H=r.hair;
+      const hd=HAIR_DIALS.map(d=>({...d,q:H[d.k]==null?null:Math.max(0,Math.min(100,100-H[d.k]))}))
+                         .filter(d=>d.q!=null);
+      return `<div class="rSection">HAIR &amp; SCALP ANALYSIS</div>
+      <div class="hero">
+        ${dialSVG(H.hairHealthScore, QBAND(H.hairHealthScore)[1], 108)}
+        <div>
+          <div style="font-family:var(--display);font-size:19px">Hair Health Score</div>
+          <p class="fine" style="margin-top:6px">An average of scalp visibility, scalp redness,
+          flaking and shaft-thickness spread — inverted so higher is better.</p>
+        </div>
+      </div>
+      <div class="rDials" style="margin-top:12px">
+        ${hd.map(d=>{const [b,c]=QBAND(d.q);
+          return `<div class="rDial">${dialSVG(d.q,c,62)}
+            <div class="rdName">${esc(d.name)}</div>
+            <div class="rdBand" style="color:${c}">${b}</div>
+            ${d.obs?"":`<div class="estTag">ESTIMATE</div>`}</div>`;}).join("")}
+      </div>
+      <table class="ht" style="margin-top:14px"><tbody>
+        <tr><td style="width:42%">Hair coverage</td><td class="mono">${H.hairCoverage}%</td></tr>
+        <tr><td>Scalp visible through hair</td><td class="mono">${H.scalpVisible}%</td></tr>
+        ${H.partingPx!=null?`<tr><td>Parting width</td><td class="mono">${H.partingPx} px
+          <div class="fine">A relative figure. Comparable between visits when photographed at the
+          same distance; it is not a millimetre measurement.</div></td></tr>`:""}
+        <tr><td>Hair shafts counted</td><td class="mono">${H.shaftCount}</td></tr>
+        <tr><td>Thickness spread</td><td class="mono">fine ${H.shaftFine}% ·
+          medium ${H.shaftMedium}% · coarse ${H.shaftCoarse}%</td></tr>
+        <tr><td>Flaking patches</td><td class="mono">${H.flakeCount}</td></tr>
+      </tbody></table>`;})():""}
 
     <!-- ===== comparisons ===== -->
     ${(ai._compare&&ai._compare.length)?`<div class="rSection">AREA-BY-AREA FINDINGS</div>
@@ -1752,7 +2198,72 @@ async function runCompare(reportId, pickResult){
   return res;
 }
 
-async function runAnalysis(reportId, signedUrl, choice){
+
+/* renderPanel wants a plain 0/1 mask; cls.kind uses 0/1/2. */
+function scalpOnlyMask(kind){
+  const m=new Uint8Array(kind.length);
+  for(let i=0;i<kind.length;i++) if(kind[i]===1) m[i]=1;
+  return m;
+}
+
+async function runScalpAnalysis(reportId, signedUrl, viewKey){
+  const img=new Image(); img.crossOrigin="anonymous";
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error("could not read that photo"));img.src=signedUrl;});
+  const sc=Math.min(1,800/img.width);
+  const w=Math.round(img.width*sc), h=Math.round(img.height*sc);
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  c.getContext("2d").drawImage(img,0,0,w,h);
+  const px=c.getContext("2d").getImageData(0,0,w,h).data;
+
+  const r=analyseScalpPhoto(px,w,h);
+  if(!r.ok) throw new Error(r.reason);
+
+  const { data:rr } = await sb.from("di_reports").select("patient_id,hair").eq("id",reportId).single();
+  const panels=[
+    ["scalp-visible", renderScalpPanel(px,w,h,r.cls,1,null,[0,150,215])],
+    ["scalp-flake",   renderScalpPanel(px,w,h,r.cls,0,r.flakes.flakes,null)],
+    ["scalp-shaft",   renderScalpPanel(px,w,h,r.cls,0,r.shafts.shafts.map(s=>({x:s.x,y:s.y,r:3})),null)],
+    ["scalp-red",     renderPanel(px,w,h,r.maps.hemMap,scalpOnlyMask(r.cls.kind),"red",null)]
+  ];
+  for(const [kind,url] of panels){
+    if(!url) continue;
+    const blob=await (await fetch(url)).blob();
+    const vk = viewKey || "parting";
+    const path=`${rr.patient_id}/${reportId}/${vk}-panel-${kind}.jpg`;
+    await sb.storage.from(BUCKET).upload(path,blob,{contentType:"image/jpeg",upsert:true});
+    const label="map:"+kind+":"+vk;
+    const { data:ex } = await sb.from("di_photos").select("id").eq("report_id",reportId).eq("view_label",label);
+    if(!ex||!ex.length)
+      await sb.from("di_photos").insert({report_id:reportId,patient_id:rr.patient_id,storage_path:path,view_label:label});
+  }
+  const prevHair = rr.hair || {};
+  const hviews = Object.assign({}, prevHair._byView || {});
+  hviews[viewKey || "parting"] = Object.assign({}, r.metrics, { _at:new Date().toISOString() });
+  const hkeys=Object.keys(hviews);
+  const hagg={ _views:hkeys.length };
+  for(const k of ["densityScore","scalpRedness","dandruff","breakage","hairCoverage",
+                  "scalpVisible","shaftFine","shaftMedium","shaftCoarse"]){
+    const vals=hkeys.map(v=>hviews[v][k]).filter(v=>v!=null&&isFinite(v));
+    if(vals.length) hagg[k]=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10;
+  }
+  for(const k of ["shaftCount","flakeCount","partingPx"]){
+    const vals=hkeys.map(v=>hviews[v][k]).filter(v=>v!=null&&isFinite(v));
+    if(vals.length) hagg[k]=Math.max(...vals);
+  }
+  const hparts=[hagg.densityScore,hagg.scalpRedness,hagg.dandruff,hagg.breakage]
+                 .filter(v=>v!=null);
+  hagg.hairHealthScore = hparts.length
+    ? Math.round(100-hparts.reduce((a,b)=>a+b,0)/hparts.length) : null;
+  const hair=Object.assign({}, prevHair, hagg,
+    { _byView:hviews,
+      _meta:{ engineVersion:ENGINE_VERSION, at:new Date().toISOString(),
+              separation:r.cls.separation, viewsAnalysed:hkeys } });
+  await sb.from("di_reports").update({ hair, updated_at:new Date().toISOString() }).eq("id",reportId);
+  await addAudit(reportId,"Analysed scalp view: " + viewName(viewKey||"parting"));
+  return r;
+}
+
+async function runAnalysis(reportId, signedUrl, choice, viewKey){
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise((res,rej)=>{ img.onload=res; img.onerror=()=>rej(new Error("could not read that photo")); img.src=signedUrl; });
@@ -1785,9 +2296,10 @@ async function runAnalysis(reportId, signedUrl, choice){
     for(const [kind,url] of panels){
       if(!url) continue;
       const blob = await (await fetch(url)).blob();
-      const path = `${rr.patient_id}/${reportId}/panel-${kind}.jpg`;
+      const vk = viewKey || "front";
+      const path = `${rr.patient_id}/${reportId}/${vk}-panel-${kind}.jpg`;
       await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/jpeg", upsert:true });
-      const label = "map:"+kind;
+      const label = "map:"+kind+":"+vk;
       const { data:existing } = await sb.from("di_photos").select("id")
         .eq("report_id", reportId).eq("view_label", label);
       if(!existing || !existing.length)
@@ -1797,17 +2309,30 @@ async function runAnalysis(reportId, signedUrl, choice){
   }
 
   const { data:rep } = await sb.from("di_reports").select("ai").eq("id", reportId).single();
-  const ai = Object.assign({}, rep.ai||{}, r.metrics, {
+  const prev = rep.ai || {};
+  /* Each view keeps its own result. Analysing the left cheek no longer wipes
+     out the front view — which is what used to happen, and made eleven of
+     your twelve photographs pointless. */
+  const views = Object.assign({}, prev._byView || {});
+  views[viewKey || "front"] = Object.assign({}, r.metrics, {
+    _whiteReference:r.whiteReference, _lowConfidencePercent:r.lowConfidencePercent,
+    _spotBands:r.spots?r.spots.bands:null, _at:new Date().toISOString()
+  });
+  const agg = aggregateViews(views) || {};
+  const ai = Object.assign({}, prev, agg, {
+    _byView: views,
+    _asym: findAsymmetry(views),
     _meta:{ whiteReference:r.whiteReference, whiteClipped:r.whiteClipped,
             whiteManual:r.whiteManual, whiteRefRGB:r.whiteRefRGB,
             skinPercent:r.skinPercent, lowConfidencePercent:r.lowConfidencePercent,
             spotBands:r.spots?r.spots.bands:null,
             engineVersion: ENGINE_VERSION,
+            viewsAnalysed: Object.keys(views),
             at:new Date().toISOString() }
   });
   await sb.from("di_reports").update({ ai, engine:"in-app photo analysis",
     updated_at:new Date().toISOString() }).eq("id", reportId);
-  await addAudit(reportId, "Photo analysed in app");
+  await addAudit(reportId, "Analysed view: " + viewName(viewKey||"front"));
   return r;
 }
 
@@ -1877,8 +2402,10 @@ async function wireUp(){
         const path = `${r.patient_id}/${r.id}/${crypto.randomUUID()}.jpg`;
         const { error:upErr } = await sb.storage.from(BUCKET).upload(path, blob, { contentType:"image/jpeg" });
         if(upErr) throw upErr;
+        const vsel=$("#viewPick");
         const { error:rowErr } = await sb.from("di_photos")
-          .insert({ report_id:r.id, patient_id:r.patient_id, storage_path:path });
+          .insert({ report_id:r.id, patient_id:r.patient_id, storage_path:path,
+                    view_label: vsel ? vsel.value : null });
         if(rowErr) throw rowErr;
       }
       await addAudit(CTX.id, files.length + " photo(s) added");
@@ -1902,7 +2429,7 @@ async function wireUp(){
       const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(b.dataset.analyse, 600);
       if(error) throw error;
       const choice = await pickWhitePoint(data.signedUrl);
-      const res = await runAnalysis(CTX.id, data.signedUrl, choice);
+      const res = await runAnalysis(CTX.id, data.signedUrl, choice, b.dataset.view);
       const found = res.whiteReference
         ? (res.whiteManual ? "White point set from your tap." : "White reference found automatically.")
         : "No white reference used.";
@@ -1910,6 +2437,18 @@ async function wireUp(){
             + res.wrinkles.length + " lines, " + res.pores.length + " pores.", 5000);
       render();
     } catch(e){ fail(e); b.disabled=false; b.textContent="Analyse"; }
+  });
+
+  $$("[data-scalp]").forEach(b => b.onclick = async () => {
+    b.disabled=true; b.textContent="Analysing…";
+    try {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(b.dataset.scalp, 600);
+      if(error) throw error;
+      const res = await runScalpAnalysis(CTX.id, data.signedUrl, b.dataset.view);
+      toast(`Scalp analysed. ${res.metrics.scalpVisible}% scalp visible, `
+          + `${res.metrics.shaftCount} shafts, ${res.metrics.flakeCount} flake patches.`, 6000);
+      render();
+    } catch(e){ fail(e); b.disabled=false; b.textContent="Analyse scalp"; }
   });
 
   $$("[data-compare]").forEach(b => b.onclick = async () => {
