@@ -157,6 +157,7 @@ table.ht.mini td{padding:5px 6px 5px 0;font-size:12px}
 .estTag{display:inline-block;font-family:var(--mono);font-size:7.5px;letter-spacing:.09em;
   border:1px solid var(--gold);color:var(--gold);border-radius:3px;padding:1px 4px;margin-top:4px}
 .rCols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.rColsOne{display:block}
 .rConc{display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .rSev{font-family:var(--mono);font-size:8.5px;letter-spacing:.07em;border:1px solid;
@@ -1357,12 +1358,24 @@ async function viewHandout(id){
 
       <div class="rBox">
         <div class="rLbl">SUMMARY</div>
-        <p class="hp" style="font-size:12px">${
-          concerns.length
-            ? `Measured findings point mainly to ${concerns.slice(0,3).map(c=>c.name.toLowerCase()).join(", ")}.
-               ${health>=75?"Overall skin health is good.":health>=60?"Overall skin health is moderate.":"Several areas need attention."}
-               These figures form your baseline — their value is the comparison at your next visit.`
-            : `No measured finding fell below the attention threshold today. This visit records your baseline.`}</p>
+        <p class="hp" style="font-size:12px">${(function(){
+          const bits=[];
+          if(concerns.length)
+            bits.push(`On the skin, measured findings point mainly to ${
+              concerns.slice(0,3).map(c=>c.name.toLowerCase()).join(", ")}.`);
+          else if(health!=null)
+            bits.push("No skin measurement fell below the attention threshold today.");
+          if(r.hair && r.hair.hairHealthScore!=null){
+            const H=r.hair;
+            const hc=HAIR_DIALS.map(d=>({n:d.name,q:H[d.k]==null?null:100-H[d.k]}))
+                               .filter(d=>d.q!=null&&d.q<70).sort((a,b)=>a.q-b.q);
+            bits.push(hc.length
+              ? `On the scalp, the main findings are ${hc.slice(0,2).map(c=>c.n.toLowerCase()).join(" and ")}.`
+              : "Scalp measurements are within a healthy range.");
+          }
+          bits.push("These figures form your baseline \u2014 their value is the comparison at your next visit.");
+          return bits.join(" ");
+        })()}</p>
       </div>
     </div>
 
@@ -1381,7 +1394,11 @@ async function viewHandout(id){
     from visible-light features, not measured directly — see the final page.</p>`:""}
 
     <!-- ===== maps ===== -->
-    ${(clinical.length||maps.length)?`<div class="rSection">SKIN ANALYSIS MAPS</div>
+    ${(clinical.length||maps.length)?`<div class="rSection">${(function(){
+      const ks=maps.map(x=>x.view_label.split(":")[1]);
+      const anySkin=ks.some(k=>PANEL_TEXT[k]), anyHair=ks.some(k=>SCALP_PANEL_TEXT[k]);
+      return anySkin&&anyHair ? "SKIN, HAIR &amp; SCALP ANALYSIS MAPS"
+           : anyHair ? "HAIR &amp; SCALP ANALYSIS MAPS" : "SKIN ANALYSIS MAPS";})()}</div>
     <div class="pGrid">
       ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}">
         <figcaption><b>Visible Light</b><span>The photograph as taken</span></figcaption></figure>`).join("")}
@@ -1481,7 +1498,7 @@ async function viewHandout(id){
       the most reliable measurement in the report.</p>`:""}
 
     <!-- ===== concerns + treatment ===== -->
-    <div class="rCols">
+    <div class="${concerns.length?"rCols":"rColsOne"}">
       ${concerns.length?`<div>
         <div class="rSection">CONCERNS DETECTED</div>
         ${concerns.map(c=>{const [b,col]=QBAND(c.q);
@@ -1521,14 +1538,33 @@ async function viewHandout(id){
 
     <!-- ===== limits ===== -->
     <div class="rSection">HOW TO READ THIS REPORT</div>
-    <table class="ht"><tbody>
-      <tr><td style="width:32%"><b>Directly observed</b></td>
-        <td class="fine">Texture, pores, pigmentation, wrinkles, redness, spots and surface shine are
-        measured from the photograph itself.</td></tr>
-      <tr><td><b>AI estimated</b></td>
-        <td class="fine">Hydration, skin barrier, elasticity and skin age are inferred from visible-light
-        features. They are indicative, not measurements.</td></tr>
-    </tbody></table>
+    ${(function(){
+      const hasSkin = ai.healthScore != null || (ai._byView && Object.keys(ai._byView).length);
+      const hasHair = r.hair && r.hair.hairHealthScore != null;
+      const rows=[];
+      if(hasSkin){
+        rows.push(["Skin — directly observed",
+          "Pigmentation, redness, texture, pores, wrinkles, spots, scarring and surface shine "
+        + "are measured from the photograph itself."]);
+        rows.push(["Skin — AI estimated",
+          "Hydration, skin barrier, elasticity and skin age are inferred from visible-light "
+        + "features. They are indicative, not measurements."]);
+      }
+      if(hasHair){
+        rows.push(["Hair &amp; scalp — directly observed",
+          "Hair coverage, how much scalp is visible, parting width, the number of hair shafts, "
+        + "scalp redness and flaking are all counted or measured from the photograph."]);
+        rows.push(["Hair &amp; scalp — AI estimated",
+          "The density score is derived from how much scalp shows through the hair, not from a "
+        + "follicle count. Shaft quality comes from the spread of shaft widths in the image, "
+        + "measured in pixels rather than microns — comparable between your visits, but not a "
+        + "laboratory figure."]);
+      }
+      if(!rows.length) return "";
+      return `<table class="ht"><tbody>${rows.map(row=>
+        `<tr><td style="width:32%"><b>${row[0]}</b></td>
+             <td class="fine">${row[1]}</td></tr>`).join("")}</tbody></table>`;
+    })()}
     ${m.whiteReference===false?`<p class="fine"><b>Note:</b> no colour reference was in these
       photographs, so today's scores should not be compared directly with another day's.</p>`:""}
     ${m.lowConfidencePercent>40?`<p class="fine"><b>Note:</b> deeper skin tones sit near the limit of
