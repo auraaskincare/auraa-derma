@@ -137,6 +137,33 @@ table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-a
 .pGrid figcaption{margin-top:6px;font-size:11.5px;line-height:1.45}
 .pGrid figcaption b{display:block;font-size:12.5px;color:#1A1A1A;margin-bottom:2px}
 .pGrid figcaption span{color:var(--muted);font-size:10.5px;line-height:1.4;display:block}
+/* ---------- report layout ---------- */
+.rHead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#1A1A1A;
+  margin:-26px -24px 0;padding:20px 24px;border-radius:8px 8px 0 0}
+.rDate{border:1px solid #4A3A42;border-radius:6px;padding:8px 12px;text-align:center}
+.rTop{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-top:16px}
+.rBox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff}
+.rCentre{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rLbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;color:var(--muted);
+  text-transform:uppercase;margin-bottom:8px}
+table.ht.mini td{padding:5px 6px 5px 0;font-size:12px}
+.rSection{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;color:#fff;background:var(--roseDeep);
+  padding:7px 12px;border-radius:5px;margin:22px 0 11px;text-transform:uppercase}
+.rDials{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px}
+.rDial{text-align:center;border:1px solid var(--line);border-radius:7px;padding:10px 5px}
+.rdName{font-size:10.5px;margin-top:5px;line-height:1.3}
+.rdBand{font-size:9.5px;margin-top:2px}
+.estTag{display:inline-block;font-family:var(--mono);font-size:7.5px;letter-spacing:.09em;
+  border:1px solid var(--gold);color:var(--gold);border-radius:3px;padding:1px 4px;margin-top:4px}
+.rCols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.rConc{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.rSev{font-family:var(--mono);font-size:8.5px;letter-spacing:.07em;border:1px solid;
+  border-radius:3px;padding:3px 7px;white-space:nowrap}
+.hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:18px 0 4px;
+  background:var(--panelHi);border:1px solid var(--line);border-radius:8px;padding:16px}
+.hero .heroRing{width:118px;height:118px;flex-shrink:0}
+.hero>div{flex:1;min-width:190px}
 .dials{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px;margin-top:4px}
 .dial{text-align:center}
 .dial .ring{width:100%;max-width:76px;height:auto}
@@ -160,9 +187,14 @@ table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-a
   .sub,.tiny{color:#333}
   #handout{border:none;border-radius:0;padding:0;max-width:none}
   #handout h3{break-after:avoid}
-  table.ht tr,.hGrid figure,.pGrid figure,.hSug,.dial{break-inside:avoid}
-  .pGrid{grid-template-columns:repeat(3,1fr)}
+  table.ht tr,.hGrid figure,.pGrid figure,.hSug,.dial,.rDial,.rBox{break-inside:avoid}
+  .pGrid{grid-template-columns:repeat(4,1fr)}
   .dials{grid-template-columns:repeat(6,1fr)}
+  .rDials{grid-template-columns:repeat(10,1fr)}
+  .rTop{grid-template-columns:repeat(4,1fr)}
+  .rHead{margin:0 0 4px;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rSection{-webkit-print-color-adjust:exact;print-color-adjust:exact;break-after:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .hFoot{break-inside:avoid}
   a{text-decoration:none;color:#000}
 }
@@ -252,7 +284,9 @@ function fail(e){
    meas  = a scalp measurement you take yourself.
    =================================================================== */
 const SKIN_AI = [
+  { k:"healthScore",   label:"Overall Skin Health",  unit:"/100" },
   { k:"pigment",       label:"Pigment level",        unit:"/100" },
+  { k:"wrinkles",      label:"Wrinkles",             unit:"/100" },
   { k:"pigmentUneven", label:"Pigment unevenness",   unit:"/100" },
   { k:"redness",       label:"Redness / erythema",   unit:"/100" },
   { k:"rednessUneven", label:"Redness unevenness",   unit:"/100" },
@@ -737,19 +771,23 @@ const EXPLAIN = {
   rednessUneven: ["Redness evenness","Whether redness sits in patches rather than spread evenly."],
   oiliness:      ["Shine","How much light bounces off the surface — a guide to oiliness on the day."],
   texture:       ["Texture","How smooth or rough the surface is."],
-  pores:         ["Pores","Visible pore openings."],
-  blemishes:     ["Blemishes","Spots and marks counted on the surface."],
-  hydration:     ["Dryness appearance","How dry the skin looks. This is appearance only — not a moisture reading."]
+  pores:         ["Pores","How prominent the pore openings are across the face."],
+  blemishes:     ["Blemishes","How densely spots and marks are distributed."],
+  wrinkles:      ["Wrinkles","How many lines and creases are present, and how deep."],
+  hydration:     ["Dryness appearance","How dry the skin looks. Appearance only — not a moisture reading."],
+  healthScore:   ["Overall Skin Health Score","A plain average of the six measures above, inverted so a higher number is better skin."]
 };
 const BANDS = v => v<25 ? ["Low","var(--ok)"] : v<50 ? ["Mild","var(--ok)"]
              : v<75 ? ["Moderate","var(--warn)"] : ["High","var(--bad)"];
 
 const PANEL_TEXT = {
-  spots:   ["Spots detected","Each circle is a discrete spot standing above the surrounding skin. Red rings mark the strongest."],
-  brown:   ["Brown / pigmented areas","Where melanin sits highest relative to the skin around it."],
-  red:     ["Red areas","Where blood and inflammation sit closest to the surface."],
-  texture: ["Texture","Where the surface is roughest."],
-  shine:   ["Shine / oil","Where the surface reflects most light."]
+  spots:   ["Spot Analysis Map","Each circle is a discrete spot standing measurably above the surrounding skin. Red rings mark the strongest."],
+  brown:   ["Pigmentation Analysis Map","Where melanin sits highest relative to the skin around it."],
+  red:     ["Erythema Analysis Map","Where blood and inflammation sit closest to the surface."],
+  wrinkle: ["Wrinkle Analysis Map","Lines and creases, separated from pores by their elongated shape."],
+  pore:    ["Pore Analysis Map","Individual pore openings, separated from wrinkles by their round shape."],
+  texture: ["Texture Analysis Map","Where the surface is roughest."],
+  shine:   ["Surface Shine Map","Where the surface reflects most light — a guide to oiliness on the day."]
 };
 
 const NOTE_NO_REFERENCE = "<br><br><b>Note:</b> no colour reference was present in these photographs, "
@@ -776,37 +814,60 @@ const SUGGESTIONS = [
     note:"Correct dryness before any active treatment." }
 ];
 
+/* Directly observable vs AI-estimated. Kept apart everywhere, exactly as
+   your specification requires. Scores are shown as QUALITY (higher = better),
+   converted from the severity figures the engine produces. */
+const DIAL_SPEC = [
+  { k:"texture",       name:"Texture",      obs:true  },
+  { k:"pores",         name:"Pores",        obs:true  },
+  { k:"pigmentUneven", name:"Pigmentation", obs:true  },
+  { k:"wrinkles",      name:"Wrinkles",     obs:true  },
+  { k:"redness",       name:"Redness",      obs:true  },
+  { k:"blemishes",     name:"Acne / Spots", obs:true  },
+  { k:"oiliness",      name:"Oiliness",     obs:true  },
+  { k:"hydration",     name:"Hydration",    obs:false },
+  { k:"barrier",       name:"Skin Barrier", obs:false },
+  { k:"elasticity",    name:"Elasticity",   obs:false }
+];
+const qualityOf = (ai,k) => {
+  if(ai[k] == null) return null;
+  return Math.max(0, Math.min(100, 100 - Number(ai[k])));
+};
+/* Bands matched to the reference report: 78+ Good, 65–77 Moderate, 50–64 Needs care. */
+const QBAND = q => q>=78 ? ["Good","var(--ok)"] : q>=65 ? ["Moderate","var(--warn)"]
+                 : q>=50 ? ["Needs care","var(--warn)"] : ["Priority","var(--bad)"];
+
+function dialSVG(q,col,size){
+  const C=2*Math.PI*26;
+  return `<svg viewBox="0 0 64 64" style="width:${size}px;height:${size}px">
+    <circle cx="32" cy="32" r="26" fill="none" stroke="#ECE4E8" stroke-width="6"/>
+    <circle cx="32" cy="32" r="26" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round"
+      stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-q/100)).toFixed(1)}"
+      transform="rotate(-90 32 32)"/>
+    <text x="32" y="38" text-anchor="middle" font-size="19" font-family="var(--mono)" fill="#1A1A1A">${q}</text>
+  </svg>`;
+}
+
 async function viewHandout(id){
   const { data:r, error } = await sb.from("di_reports").select("*").eq("id", id).single();
   if(error) throw error;
   const { data:p } = await sb.from("di_patients").select("*").eq("id", r.patient_id).single();
   const { data:all } = await sb.from("di_photos").select("*").eq("report_id", id).order("created_at");
-  const clinical = (all||[]).filter(x => !(x.view_label||"").startsWith("map:")).slice(0,3);
+  const clinical = (all||[]).filter(x => !(x.view_label||"").startsWith("map:")).slice(0,1);
   const maps     = (all||[]).filter(x =>  (x.view_label||"").startsWith("map:"));
   const ai = r.ai || {}, m = ai._meta || {};
-  const shown = SKIN_AI.filter(x => ai[x.k] != null);
 
-  // change since the last signed visit
+  const health = ai.healthScore;
+  const skinAge = (health!=null && p.age) ? Math.max(16, Math.round(Number(p.age) + (50-health)/5)) : null;
+  const ageDelta = (skinAge!=null && p.age) ? skinAge - Number(p.age) : null;
+
+  const dials = DIAL_SPEC.map(d => ({...d, q:qualityOf(ai,d.k)})).filter(d => d.q!=null);
+  const concerns = dials.filter(d => d.q < 70).sort((a,b)=>a.q-b.q);
+
+  // prior visit
   const { data:priors } = await sb.from("di_reports").select("report_date,ai")
     .eq("patient_id", r.patient_id).eq("signed", true).lt("report_date", r.report_date)
     .order("report_date",{ascending:false}).limit(1);
-  let progress = "";
-  if(priors && priors.length){
-    const pa = priors[0].ai || {};
-    const rows = shown.map(x => {
-      const a=Number(pa[x.k]), b=Number(ai[x.k]);
-      if(!isFinite(a)||!isFinite(b)||a===0) return "";
-      const d=Math.round((b-a)/a*100); if(d===0) return "";
-      const better = x.k==="hydration" ? d<0 : d<0;
-      return `<tr><td>${esc(EXPLAIN[x.k]?EXPLAIN[x.k][0]:x.label)}</td>
-        <td class="mono">${a} → ${b}</td>
-        <td class="mono" style="color:${better?"var(--ok)":"var(--bad)"}">${d>0?"↑":"↓"}${Math.abs(d)}%</td></tr>`;
-    }).join("");
-    if(rows) progress = `
-      <h3>Your progress since ${fmtDate(priors[0].report_date)}</h3>
-      <table class="ht"><tbody>${rows}</tbody></table>
-      <p class="fine">Measured from photographs taken under matched lighting. Not an estimate.</p>`;
-  }
 
   const sug = SUGGESTIONS.filter(s => s.when(ai));
 
@@ -816,120 +877,183 @@ async function viewHandout(id){
     <div class="row" style="margin-top:10px">
       <button class="btn solid" id="printHandout">Print / save as PDF</button>
     </div>
-    <p class="sub" style="margin-top:9px">In the print box choose <b>Save as PDF</b> as the destination.
-      On iPhone, tap Share then Save to Files. ${r.signed?"":"<b style='color:var(--warn)'>This report is still a draft — sign it off before giving it to a patient.</b>"}</p>
+    <p class="sub" style="margin-top:9px">In the print box choose <b>Save as PDF</b>.
+      ${r.signed?"":"<b style='color:var(--warn)'>Draft — sign it off before giving it to a patient.</b>"}</p>
   </div>
 
   <div id="handout">
-    <div class="hHead">
+    <!-- ===== masthead ===== -->
+    <div class="rHead">
       <div>
-        <div class="wordmark" style="font-size:26px">AURAA</div>
-        <div class="services" style="font-size:8.5px">SLIMMING &nbsp;|&nbsp; HAIR &nbsp;|&nbsp; SKIN &nbsp;|&nbsp; LASER</div>
+        <div class="wordmark" style="font-size:30px;color:#fff">AURAA</div>
+        <div style="font-family:var(--display);font-size:9.5px;letter-spacing:.16em;color:#E5A9CC;margin-top:5px">
+          SKIN INTELLIGENCE</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-family:var(--display);font-size:15px">Skin Analysis Report</div>
-        <div class="fine">${fmtDate(r.report_date)}</div>
+      <div style="text-align:center;flex:1;min-width:180px">
+        <div style="font-family:var(--display);font-size:19px;color:#fff;letter-spacing:.02em">
+          AI SKIN ANALYSIS REPORT</div>
+        <div style="font-size:10px;color:#E5A9CC;letter-spacing:.12em;margin-top:4px">
+          MEASURED. NOT GUESSED.</div>
+      </div>
+      <div class="rDate">
+        <div style="font-size:8.5px;letter-spacing:.12em;color:#E5A9CC">ANALYSIS DATE</div>
+        <div style="font-size:12.5px;color:#fff;margin-top:3px">${fmtDate(r.report_date)}</div>
       </div>
     </div>
 
-    <table class="ht" style="margin-top:14px"><tbody>
-      <tr><td style="width:34%">Name</td><td><b>${esc(p.name)}</b></td></tr>
-      ${p.age?`<tr><td>Age</td><td>${p.age}${p.sex?" · "+esc(p.sex):""}</td></tr>`:""}
-      ${r.grades&&r.grades.fitzpatrick?`<tr><td>Skin type</td><td>Fitzpatrick ${esc(r.grades.fitzpatrick)}</td></tr>`:""}
-      <tr><td>Assessed by</td><td>Dr. Fatima Sajeeda</td></tr>
-    </tbody></table>
-
-    ${clinical.length ? `<h3>Your photograph</h3>
-      <div class="hGrid">
-        ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}"><figcaption>As photographed</figcaption></figure>`).join("")}
-      </div>` : ""}
-
-    ${maps.length ? `<h3>What the analysis found</h3>
-      <div class="pGrid">
-        ${maps.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||["",""];
-          return `<figure><img data-path="${esc(x.storage_path)}">
-            <figcaption><b>${esc(t[0])}</b><span>${esc(t[1])}</span></figcaption></figure>`;}).join("")}
+    <!-- ===== top strip ===== -->
+    <div class="rTop">
+      <div class="rBox">
+        <div class="rLbl">PATIENT DETAILS</div>
+        <table class="ht mini"><tbody>
+          <tr><td>Name</td><td><b>${esc(p.name)}</b></td></tr>
+          ${p.age?`<tr><td>Age</td><td>${p.age} years</td></tr>`:""}
+          ${p.sex?`<tr><td>Sex</td><td>${esc(p.sex)}</td></tr>`:""}
+          ${(r.grades&&r.grades.fitzpatrick)?`<tr><td>Fitzpatrick</td><td>${esc(r.grades.fitzpatrick)}</td></tr>`:""}
+          ${p.skin_concerns?`<tr><td>Concerns</td><td>${esc(p.skin_concerns)}</td></tr>`:""}
+        </tbody></table>
       </div>
-      <p class="fine">Each panel is your own photograph with one finding highlighted by computer.
-      Pigment and blood are separated mathematically — which is what allows pigmentation and
-      inflammation to be followed independently, rather than judged together by eye.</p>` : ""}
 
-    ${ai.spotCount != null ? `<h3>Spot count</h3>
-      <div class="dials">
-        <div class="dial"><div class="dv">${ai.spotCount}</div><div class="dl">Spots detected</div></div>
-        <div class="dial"><div class="dv">${ai.spotAreaRatio}<span>%</span></div><div class="dl">Of face affected</div></div>
-        ${m.spotBands?`<div class="dial"><div class="dv">${m.spotBands.severe}</div><div class="dl">Marked severe</div></div>`:""}
+      ${health!=null?`<div class="rBox rCentre">
+        <div class="rLbl">OVERALL SKIN SCORE</div>
+        ${dialSVG(health, QBAND(health)[1], 108)}
+        <div style="font-size:11.5px;color:${QBAND(health)[1]};margin-top:4px">${QBAND(health)[0]}</div>
+      </div>`:""}
+
+      ${skinAge!=null?`<div class="rBox rCentre">
+        <div class="rLbl">SKIN AGE <span class="estTag">ESTIMATE</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Chronological</div>
+        <div class="mono" style="font-size:26px">${p.age}</div>
+        <div style="height:1px;background:var(--line);margin:7px 0"></div>
+        <div style="font-size:11px;color:var(--muted)">Estimated skin age</div>
+        <div class="mono" style="font-size:26px;color:${ageDelta<0?"var(--ok)":ageDelta>0?"var(--warn)":"var(--muted)"}">${skinAge}</div>
+        <div style="font-size:11px;margin-top:3px;color:${ageDelta<0?"var(--ok)":"var(--warn)"}">
+          ${ageDelta===0?"Matches age":ageDelta<0?Math.abs(ageDelta)+" years younger":ageDelta+" years older"}</div>
+      </div>`:""}
+
+      <div class="rBox">
+        <div class="rLbl">SUMMARY</div>
+        <p class="hp" style="font-size:12px">${
+          concerns.length
+            ? `Measured findings point mainly to ${concerns.slice(0,3).map(c=>c.name.toLowerCase()).join(", ")}.
+               ${health>=75?"Overall skin health is good.":health>=60?"Overall skin health is moderate.":"Several areas need attention."}
+               These figures form your baseline — their value is the comparison at your next visit.`
+            : `No measured finding fell below the attention threshold today. This visit records your baseline.`}</p>
       </div>
-      ${m.spotBands?`<table class="ht" style="margin-top:12px">
-        <thead><tr><th>Severity</th><th>Quantity</th><th>Share</th></tr></thead><tbody>
-        ${[["Mild",m.spotBands.mild],["Moderate",m.spotBands.moderate],["Severe",m.spotBands.severe]]
-          .map(([n,v])=>`<tr><td>${n}</td><td class="mono">${v}</td>
-            <td class="mono">${ai.spotCount?Math.round(v/ai.spotCount*100):0}%</td></tr>`).join("")}
-        </tbody></table>`:""}
-      <p class="fine">Counted automatically from the photograph. Each marked spot stands measurably
-      above the surrounding skin, so the same count can be repeated at your next visit.</p>` : ""}
+    </div>
 
-    ${shown.length ? `<h3>Measured scores</h3>
-      <div class="dials">
-        ${shown.slice(0,6).map(x=>{const v=Number(ai[x.k]);const [band,col]=BANDS(v);
-          const e=EXPLAIN[x.k]||[x.label,""];
-          const C=2*Math.PI*26, off=C*(1-v/100);
-          return `<div class="dial">
-            <svg viewBox="0 0 64 64" class="ring">
-              <circle cx="32" cy="32" r="26" fill="none" stroke="#EFE7EB" stroke-width="7"/>
-              <circle cx="32" cy="32" r="26" fill="none" stroke="${col}" stroke-width="7"
-                stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}"
-                stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 32 32)"/>
-              <text x="32" y="37" text-anchor="middle" font-size="18"
-                font-family="var(--mono)" fill="#1A1A1A">${v}</text>
-            </svg>
-            <div class="dl">${esc(e[0])}</div>
-            <div class="db" style="color:${col}">${band}</div></div>`;}).join("")}
-      </div>
-      <table class="ht" style="margin-top:14px">
-      <thead><tr><th>Measure</th><th>Score</th><th>Band</th></tr></thead><tbody>
-      ${shown.map(x=>{const v=Number(ai[x.k]);const [band,col]=BANDS(v);
-        const e=EXPLAIN[x.k]||[x.label,""];
-        return `<tr><td><b>${esc(e[0])}</b><div class="fine">${esc(e[1])}</div></td>
-          <td class="mono" style="font-size:17px">${v}<span class="fine">/100</span></td>
-          <td style="color:${col}">${band}</td></tr>`;}).join("")}
-      </tbody></table>
-      <p class="fine">Scores run 0–100 and describe this photograph under this lighting.
-      Their real value is the comparison against your next visit.</p>` : ""}
+    <!-- ===== dials ===== -->
+    ${dials.length?`<div class="rSection">ANALYSED CONCERNS OVERVIEW</div>
+    <div class="rDials">
+      ${dials.map(d=>{const [b,c]=QBAND(d.q);
+        return `<div class="rDial">
+          ${dialSVG(d.q,c,62)}
+          <div class="rdName">${esc(d.name)}</div>
+          <div class="rdBand" style="color:${c}">${b}</div>
+          ${d.obs?"":`<div class="estTag">ESTIMATE</div>`}
+        </div>`;}).join("")}
+    </div>
+    <p class="fine">Higher is better. Dials marked <span class="estTag">ESTIMATE</span> are inferred
+    from visible-light features, not measured directly — see the final page.</p>`:""}
 
-    ${(ai._compare && ai._compare.length) ? `<h3>Area-by-area findings</h3>
+    <!-- ===== maps ===== -->
+    ${(clinical.length||maps.length)?`<div class="rSection">SKIN ANALYSIS MAPS</div>
+    <div class="pGrid">
+      ${clinical.map(x=>`<figure><img data-path="${esc(x.storage_path)}">
+        <figcaption><b>Visible Light</b><span>The photograph as taken</span></figcaption></figure>`).join("")}
+      ${maps.map(x=>{const k=x.view_label.split(":")[1]; const t=PANEL_TEXT[k]||["",""];
+        return `<figure><img data-path="${esc(x.storage_path)}">
+          <figcaption><b>${esc(t[0])}</b><span>${esc(t[1])}</span></figcaption></figure>`;}).join("")}
+    </div>`:""}
+
+    <!-- ===== spots ===== -->
+    ${ai.spotCount!=null?`<div class="rSection">LESION COUNT</div>
+    <div class="dials">
+      <div class="dial"><div class="dv">${ai.spotCount}</div><div class="dl">Spots detected</div></div>
+      <div class="dial"><div class="dv">${ai.spotAreaRatio}<span>%</span></div><div class="dl">Of face affected</div></div>
+      ${ai.wrinkleCount!=null?`<div class="dial"><div class="dv">${ai.wrinkleCount}</div><div class="dl">Lines detected</div></div>`:""}
+      ${ai.poreCount!=null?`<div class="dial"><div class="dv">${ai.poreCount}</div><div class="dl">Pores detected</div></div>`:""}
+    </div>
+    ${m.spotBands?`<table class="ht" style="margin-top:12px">
+      <thead><tr><th>Severity</th><th>Quantity</th><th>Share</th></tr></thead><tbody>
+      ${[["Mild",m.spotBands.mild],["Moderate",m.spotBands.moderate],["Severe",m.spotBands.severe]]
+        .map(([n,v])=>`<tr><td>${n}</td><td class="mono">${v}</td>
+        <td class="mono">${ai.spotCount?Math.round(v/ai.spotCount*100):0}%</td></tr>`).join("")}
+      </tbody></table>`:""}`:""}
+
+    <!-- ===== comparisons ===== -->
+    ${(ai._compare&&ai._compare.length)?`<div class="rSection">AREA-BY-AREA FINDINGS</div>
       <table class="ht"><tbody>
-      ${ai._compare.map(c=>`<tr>
-        <td style="width:38%"><b>${esc(c.label)}</b>
-          <div class="fine">Two areas of your skin measured against each other</div></td>
+      ${ai._compare.map(c=>`<tr><td style="width:38%"><b>${esc(c.label)}</b></td>
         <td><b style="color:var(--roseDeep)">${esc(c.verdict)}</b>
-          <div class="fine">${esc(c.detail)}</div></td></tr>`).join("")}
+        <div class="fine">${esc(c.detail)}</div></td></tr>`).join("")}
       </tbody></table>
-      <p class="fine">Because both areas come from the same photograph under the same light,
-      this comparison is the most reliable measurement in this report.</p>` : ""}
+      <p class="fine">Both areas come from the same photograph under the same light, which makes this
+      the most reliable measurement in the report.</p>`:""}
 
-    ${progress}
+    <!-- ===== concerns + treatment ===== -->
+    <div class="rCols">
+      ${concerns.length?`<div>
+        <div class="rSection">CONCERNS DETECTED</div>
+        ${concerns.map(c=>{const [b,col]=QBAND(c.q);
+          return `<div class="rConc"><span>${esc(c.name)}${c.obs?"":' <span class="estTag">EST</span>'}</span>
+          <span class="rSev" style="border-color:${col};color:${col}">${b.toUpperCase()}</span></div>`;}).join("")}
+      </div>`:"<div></div>"}
+      ${sug.length?`<div>
+        <div class="rSection">TREATMENT OPTIONS</div>
+        ${sug.map(s=>`<div class="hSug"><b>${esc(s.title)}</b><div>${esc(s.options)}</div>
+          ${s.note?`<div class="fine">${esc(s.note)}</div>`:""}</div>`).join("")}
+        <p class="fine">Options for discussion, not a prescription. Suitability is decided by
+        Dr. Fatima after examination and review of your medical history.</p>
+      </div>`:"<div></div>"}
+    </div>
 
-    ${r.note ? `<h3>Clinical note</h3><p class="hp">${esc(r.note)}</p>` : ""}
+    <!-- ===== progress ===== -->
+    <div class="rSection">PROGRESS</div>
+    ${priors&&priors.length?(function(){
+      const pa=priors[0].ai||{};
+      const rows=DIAL_SPEC.map(d=>{
+        const a=qualityOf(pa,d.k), b=qualityOf(ai,d.k);
+        if(a==null||b==null||a===0) return "";
+        const diff=b-a; if(diff===0) return "";
+        return `<tr><td>${esc(d.name)}</td><td class="mono">${a} → ${b}</td>
+          <td class="mono" style="color:${diff>0?"var(--ok)":"var(--bad)"}">${diff>0?"+":""}${diff}</td></tr>`;
+      }).join("");
+      return rows?`<table class="ht"><thead><tr><th>Measure</th><th>Then → now</th><th>Change</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+        <p class="fine">Measured change since ${fmtDate(priors[0].report_date)}. Not an estimate.</p>`
+        :`<p class="hp">No measurable change since ${fmtDate(priors[0].report_date)}.</p>`;
+    })():`<p class="hp">This visit records your <b>baseline</b>. From your next visit onward, every
+      figure above will be shown as measured change — real percentages from your own photographs,
+      not a prediction.</p>
+      <p class="fine">We do not show simulated "after" images. A predicted photograph is a promise
+      no clinic can keep, and it is not how your progress will be judged here.</p>`}
 
-    ${sug.length ? `<h3>Discussed options</h3>
-      ${sug.map(s=>`<div class="hSug"><b>${esc(s.title)}</b><div>${esc(s.options)}</div>
-        ${s.note?`<div class="fine">${esc(s.note)}</div>`:""}</div>`).join("")}
-      <p class="fine">Options for discussion, not a prescription. Suitability is decided by Dr. Fatima
-      after examination and review of your medical history.</p>` : ""}
-
-    <h3>What this analysis does not cover</h3>
-    <p class="hp">These measurements are taken from ordinary photographs. They describe the surface of
-    your skin. They do <b>not</b> measure pigment below the surface, collagen, bacteria within pores,
-    or hydration inside the skin — those require different equipment and none of them are reported here.
-    ${m.whiteReference === false ? NOTE_NO_REFERENCE : ""}
-    ${m.lowConfidencePercent > 40 ? NOTE_DEEP_TONE : ""}</p>
+    <!-- ===== limits ===== -->
+    <div class="rSection">HOW TO READ THIS REPORT</div>
+    <table class="ht"><tbody>
+      <tr><td style="width:32%"><b>Directly observed</b></td>
+        <td class="fine">Texture, pores, pigmentation, wrinkles, redness, spots and surface shine are
+        measured from the photograph itself.</td></tr>
+      <tr><td><b>AI estimated</b></td>
+        <td class="fine">Hydration, skin barrier, elasticity and skin age are inferred from visible-light
+        features. They are indicative, not measurements.</td></tr>
+      <tr><td><b>Not covered at all</b></td>
+        <td class="fine">UV damage below the surface, porphyrins, collagen density and true hydration
+        need ultraviolet light, ultrasound or a probe against the skin. No number for any of them
+        appears anywhere in this report.</td></tr>
+    </tbody></table>
+    ${m.whiteReference===false?`<p class="fine"><b>Note:</b> no colour reference was in these
+      photographs, so today's scores should not be compared directly with another day's.</p>`:""}
+    ${m.lowConfidencePercent>40?`<p class="fine"><b>Note:</b> deeper skin tones sit near the limit of
+      what a camera can separate. Pigment figures here are indicative and Dr. Fatima's grading takes
+      precedence.</p>`:""}
 
     <div class="hFoot">
       <div><b>Auraa Skincare Clinic</b> · Falcon Valley Road, opp. D-Mart, Film Nagar, Hyderabad 500008</div>
       <div>+91 91008 76662 · auraaskincare.com</div>
-      <div class="fine" style="margin-top:8px">This report supports a consultation with your treating doctor.
-      It is not a diagnosis and does not replace medical advice.
+      <div class="fine" style="margin-top:8px">This report supports a consultation with your treating
+      doctor. It is not a diagnosis and does not replace medical advice.
       ${r.signed?`Reviewed and signed by Dr. Fatima Sajeeda on ${fmtDate(r.signed_at)}.`:"DRAFT — NOT YET REVIEWED."}</div>
     </div>
   </div>`;
@@ -1092,6 +1216,14 @@ function analysePixels(px,w,h,manualRef){
     if(n) texMap[i]=s/n;
   }
   const spotRes = detectSpots(melMap, w, h, mask);
+
+  // wrinkles (lines, wide spacing) and pores (dots, tight spacing)
+  const ridgeW = ridgeResponse(lums, w, h, mask, 3);
+  const ridgeP = ridgeResponse(lums, w, h, mask, 1);
+  const wrinkles = connectedBlobs(ridgeW,w,h,mask,5,10,Math.round(w*h*0.02)).filter(isWrinkle);
+  const pores    = connectedBlobs(ridgeP,w,h,mask,4,2,26).filter(isPore);
+  const per1000 = n => n / Math.max(1, skin/1000);
+
   const sc=(v,lo,hi)=>Math.round(Math.max(0,Math.min(100,((v-lo)/(hi-lo))*100)));
 
   return {
@@ -1102,18 +1234,40 @@ function analysePixels(px,w,h,manualRef){
     whiteClipped: wr.clipped,
     skinPercent: Math.round(skin/total*100),
     lowConfidencePercent: Math.round(dark/Math.max(1,mels.length)*100),
-    maps: { melMap, hemMap, texMap, shineMap, mask, w, h },
-    spots: spotRes,
-    metrics:{
-      spotCount:     spotRes.count,
-      spotAreaRatio: +(spotRes.areaPx/Math.max(1,spotRes.skinPx)*100).toFixed(2),
-      pigment:       sc(mean(mels), 0.10, 1.60),
-      pigmentUneven: sc(sd(mels),   0.00, 0.35),
-      redness:       sc(mean(hems), 0.02, 0.70),
-      rednessUneven: sc(sd(hems),   0.00, 0.25),
-      oiliness:      Math.round(shine/Math.max(1,skin)*100),
-      texture:       sc(texture, 0.5, 12)
-    }
+    maps: { melMap, hemMap, texMap, shineMap, ridgeW, ridgeP, mask, w, h },
+    spots: spotRes, wrinkles, pores,
+    metrics: (function(){
+      const m = {
+        spotCount:     spotRes.count,
+        spotAreaRatio: +(spotRes.areaPx/Math.max(1,spotRes.skinPx)*100).toFixed(2),
+        wrinkleCount:  wrinkles.length,
+        poreCount:     pores.length,
+        pigment:       sc(mean(mels), 0.10, 1.60),
+        pigmentUneven: sc(sd(mels),   0.00, 0.35),
+        redness:       sc(mean(hems), 0.02, 0.70),
+        rednessUneven: sc(sd(hems),   0.00, 0.25),
+        oiliness:      Math.round(shine/Math.max(1,skin)*100),
+        texture:       sc(texture, 0.5, 12),
+        wrinkles:      sc(per1000(wrinkles.length), 0, 1.2),
+        pores:         sc(per1000(pores.length),    0, 14),
+        blemishes:     sc(per1000(spotRes.count),   0, 3.5)
+      };
+      // Appearance of dryness: fine roughness, minus the sheen of well-oiled skin.
+      m.hydration = Math.max(0, Math.min(100, Math.round(m.texture - m.oiliness*0.5)));
+      /* ---- AI ESTIMATES ----
+         Inferred from visible-light features, never presented as measurements.
+         Each is a stated formula so it can be checked and argued with. */
+      // Barrier: inflammation plus a dry-looking surface.
+      m.barrier    = Math.max(0, Math.min(100, Math.round(m.redness*0.55 + m.hydration*0.45)));
+      // Elasticity: lines and roughness are what laxity looks like in a photograph.
+      m.elasticity = Math.max(0, Math.min(100, Math.round(m.wrinkles*0.60 + m.texture*0.40)));
+      /* Overall score. Deliberately a plain average of six measured things,
+         each inverted so higher means better skin. No hidden weighting —
+         if a patient asks how it was calculated, you can tell them. */
+      const parts=[m.pigmentUneven, m.redness, m.texture, m.blemishes, m.wrinkles, m.pores];
+      m.healthScore = Math.round(100 - parts.reduce((a,b)=>a+b,0)/parts.length);
+      return m;
+    })()
   };
 }
 
@@ -1262,11 +1416,59 @@ function detectSpots(rawMap, w, h, mask, opts={}){
            skinPx, threshold:+thr.toFixed(4), bands };
 }
 
+/* Wrinkles are LINES, pores are DOTS. The same darkness detector finds both,
+   so they are separated by shape — otherwise every pore becomes a wrinkle. */
+function ridgeResponse(lum, w, h, mask, d){
+  const out=new Float32Array(w*h).fill(NaN);
+  const dirs=[[d,0],[0,d],[d,d],[d,-d]];
+  for(let y=d;y<h-d;y++) for(let x=d;x<w-d;x++){
+    const i=y*w+x; if(!mask[i]||lum[i]<0) continue;
+    let best=-1e9;
+    for(let k=0;k<4;k++){
+      const dx=dirs[k][0], dy=dirs[k][1];
+      const a=i+dy*w+dx, b=i-dy*w-dx;
+      if(lum[a]<0||lum[b]<0) continue;
+      const v=(lum[a]+lum[b])/2 - lum[i];   // darker than both sides = a valley
+      if(v>best) best=v;
+    }
+    if(best>-1e8) out[i]=best;
+  }
+  return out;
+}
+function connectedBlobs(mapArr,w,h,mask,thr,minA,maxA){
+  const hot=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) if(mask[i]&&!isNaN(mapArr[i])&&mapArr[i]>thr) hot[i]=1;
+  const seen=new Uint8Array(w*h), out=[], stack=new Int32Array(w*h);
+  for(let s=0;s<w*h;s++){
+    if(!hot[s]||seen[s]) continue;
+    let sp=0; stack[sp++]=s; seen[s]=1;
+    let n=0,minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9,sx=0,sy=0;
+    while(sp){
+      const i=stack[--sp]; n++;
+      const x=i%w,y=(i/w)|0; sx+=x; sy+=y;
+      if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y;
+      if(x>0&&hot[i-1]&&!seen[i-1]){seen[i-1]=1;stack[sp++]=i-1;}
+      if(x<w-1&&hot[i+1]&&!seen[i+1]){seen[i+1]=1;stack[sp++]=i+1;}
+      if(y>0&&hot[i-w]&&!seen[i-w]){seen[i-w]=1;stack[sp++]=i-w;}
+      if(y<h-1&&hot[i+w]&&!seen[i+w]){seen[i+w]=1;stack[sp++]=i+w;}
+    }
+    if(n<minA||n>maxA) continue;
+    const bw=maxx-minx+1, bh=maxy-miny+1;
+    out.push({x:Math.round(sx/n),y:Math.round(sy/n),area:n,
+              elong:Math.max(bw,bh)/Math.max(1,Math.min(bw,bh)),len:Math.max(bw,bh)});
+  }
+  return out;
+}
+const isWrinkle = b => b.elong>=2.6 && b.len>=7;
+const isPore    = b => b.elong<2.0 && b.area<=26;
+
 const PANEL_STYLES = {
-  brown:   { rgb:[150, 70, 10], label:"Brown areas" },
-  red:     { rgb:[210, 25, 35], label:"Red areas"   },
-  texture: { rgb:[0, 150, 165], label:"Texture"     },
-  shine:   { rgb:[235, 175, 0], label:"Shine"       }
+  brown:   { rgb:[150, 70, 10] },
+  red:     { rgb:[210, 25, 35] },
+  texture: { rgb:[0, 150, 165] },
+  shine:   { rgb:[235, 175, 0] },
+  wrinkle: { rgb:[105, 45, 175] },
+  pore:    { rgb:[25, 90, 200]  }
 };
 
 /* Photo underneath, finding highlighted on top. */
@@ -1460,11 +1662,13 @@ async function runAnalysis(reportId, signedUrl, choice){
     const M=r.maps;
     const { data:rr } = await sb.from("di_reports").select("patient_id").eq("id", reportId).single();
     const panels = [
-      ["spots",   renderPanel(px,w,h,null,           M.mask, "brown",   r.spots.spots)],
-      ["brown",   renderPanel(px,w,h,M.melMap,       M.mask, "brown",   null)],
-      ["red",     renderPanel(px,w,h,M.hemMap,       M.mask, "red",     null)],
-      ["texture", renderPanel(px,w,h,M.texMap,       M.mask, "texture", null)],
-      ["shine",   renderPanel(px,w,h,M.shineMap,     M.mask, "shine",   null)]
+      ["spots",   renderPanel(px,w,h,null,       M.mask, "brown",   r.spots.spots)],
+      ["brown",   renderPanel(px,w,h,M.melMap,   M.mask, "brown",   null)],
+      ["red",     renderPanel(px,w,h,M.hemMap,   M.mask, "red",     null)],
+      ["wrinkle", renderPanel(px,w,h,M.ridgeW,   M.mask, "wrinkle", null)],
+      ["pore",    renderPanel(px,w,h,M.ridgeP,   M.mask, "pore",    null)],
+      ["texture", renderPanel(px,w,h,M.texMap,   M.mask, "texture", null)],
+      ["shine",   renderPanel(px,w,h,M.shineMap, M.mask, "shine",   null)]
     ];
     for(const [kind,url] of panels){
       if(!url) continue;
