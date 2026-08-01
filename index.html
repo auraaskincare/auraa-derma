@@ -138,9 +138,10 @@ table.ht td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);vertical-a
 .pGrid figcaption b{display:block;font-size:12.5px;color:#1A1A1A;margin-bottom:2px}
 .pGrid figcaption span{color:var(--muted);font-size:10.5px;line-height:1.4;display:block}
 /* ---------- report layout ---------- */
-.rHead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#1A1A1A;
+.rHead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:linear-gradient(100deg,#E5007D 0%,#B0005A 62%,#7A0040 100%);
   margin:-26px -24px 0;padding:20px 24px;border-radius:8px 8px 0 0}
-.rDate{border:1px solid #4A3A42;border-radius:6px;padding:8px 12px;text-align:center}
+.rDate{border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:8px 12px;text-align:center}
 .rTop{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-top:16px}
 .rBox{border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff}
 .rCentre{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -254,8 +255,12 @@ const SUPABASE_URL = "https://pcmmldqcfbslnrmgpoez.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ukrht_UV0BRZB_CJ92ocWg_ZfO3wTV_";
 const ADMIN_EMAIL  = "auraa.skincare@gmail.com";
 const BUCKET       = "derma-photos";
-/* Change this one line if the handle is different. */
-const IG_HANDLE    = "@auraaskincare";
+const IG_HANDLE    = "@auraaskincareclinic";
+/* Bumped whenever the measurement code changes. Stored with every analysis so
+   a report can tell you its numbers were produced by older code and need
+   re-running — otherwise you upload a new version, see old scores, and
+   reasonably conclude nothing happened. */
+const ENGINE_VERSION = 4;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -628,6 +633,12 @@ async function viewReport(id){
       THIS COMPARISON HOLDS EVEN WITHOUT A WHITE REFERENCE.</p>` : "";
 
   const m = r.ai && r.ai._meta;
+  const stale = m && (m.engineVersion || 0) < ENGINE_VERSION;
+  const staleBanner = stale ? `
+    <div class="banner bad noprint"><b>These numbers are out of date.</b>
+      They were produced by an earlier version of the analysis. The scoring and the maps have
+      changed since. Tap <b>Analyse</b> on the photo above to recalculate — nothing will update
+      until you do.</div>` : "";
   const quality = m ? `
     <div class="eyebrow dim" style="margin:22px 0 8px">How much to trust this scan</div>
     ${m.whiteClipped ? `<div class="banner bad"><b>The white paper is overexposed.</b>
@@ -687,6 +698,7 @@ async function viewReport(id){
   <h2 class="disp">${esc(p ? p.name : "")}</h2>
   <div class="tiny" style="margin-bottom:14px">${fmtDate(r.report_date)} · ${esc(r.engine||"")}${r.signed?" · SIGNED "+fmtDate(r.signed_at):""}</div>
 
+  ${staleBanner}
   ${r.signed
     ? `<div class="banner ok">You signed this off on ${fmtDate(r.signed_at)}. It is locked. Start a new analysis to record changes.</div>`
     : `<div class="banner info">Draft. Nothing here should be shown to the patient until you sign it off.</div>`}
@@ -895,9 +907,14 @@ async function viewHandout(id){
 
   const sug = SUGGESTIONS.filter(s => s.when(ai));
 
+  const stale = m && (m.engineVersion || 0) < ENGINE_VERSION;
+
   return `
   <div class="noprint" style="margin-bottom:14px">
     <button class="btn ghost sm" data-report="${id}">‹ Back to the analysis</button>
+    ${stale?`<div class="banner bad" style="margin-top:10px"><b>Out of date.</b>
+      These figures came from an earlier version of the analysis. Go back and tap
+      <b>Analyse</b> on the photo to recalculate before printing this.</div>`:""}
     <div class="row" style="margin-top:10px">
       <button class="btn solid" id="printHandout">Print / save as PDF</button>
     </div>
@@ -910,7 +927,7 @@ async function viewHandout(id){
     <div class="rHead">
       <div>
         <div class="wordmark" style="font-size:30px;color:#fff">AURAA</div>
-        <div style="font-family:var(--display);font-size:8.5px;letter-spacing:.14em;color:#E5A9CC;margin-top:5px">
+        <div style="font-family:var(--display);font-size:8.5px;letter-spacing:.14em;color:#FFD9EC;margin-top:5px">
           SLIMMING &nbsp;|&nbsp; HAIR &nbsp;|&nbsp; SKIN &nbsp;|&nbsp; LASER</div>
         <div style="font-family:var(--display);font-style:italic;font-size:11px;color:#fff;margin-top:6px">
           Discover the New You.</div>
@@ -918,11 +935,11 @@ async function viewHandout(id){
       <div style="text-align:center;flex:1;min-width:180px">
         <div style="font-family:var(--display);font-size:19px;color:#fff;letter-spacing:.02em">
           AI SKIN ANALYSIS REPORT</div>
-        <div style="font-size:9px;color:#E5A9CC;letter-spacing:.12em;margin-top:4px">
+        <div style="font-size:9px;color:#FFD9EC;letter-spacing:.12em;margin-top:4px">
           AURAA SKINCARE CLINIC &nbsp;·&nbsp; HYDERABAD</div>
       </div>
       <div class="rDate">
-        <div style="font-size:8.5px;letter-spacing:.12em;color:#E5A9CC">ANALYSIS DATE</div>
+        <div style="font-size:8.5px;letter-spacing:.12em;color:#FFD9EC">ANALYSIS DATE</div>
         <div style="font-size:12.5px;color:#fff;margin-top:3px">${fmtDate(r.report_date)}</div>
       </div>
     </div>
@@ -1785,6 +1802,7 @@ async function runAnalysis(reportId, signedUrl, choice){
             whiteManual:r.whiteManual, whiteRefRGB:r.whiteRefRGB,
             skinPercent:r.skinPercent, lowConfidencePercent:r.lowConfidencePercent,
             spotBands:r.spots?r.spots.bands:null,
+            engineVersion: ENGINE_VERSION,
             at:new Date().toISOString() }
   });
   await sb.from("di_reports").update({ ai, engine:"in-app photo analysis",
