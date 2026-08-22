@@ -523,6 +523,44 @@ function fieldHTML(f, val){
   }
   return `<label class="fld"><span>${esc(label)}</span><input class="in" type="${type}" data-f="${k}" value="${esc(val)}"></label>`;
 }
+/* ===================================================================
+   BILLING LOOKUP
+   Your billing app keeps its clients in clinic_state.data.clients.
+   This reads that list so a client already on your books does not have
+   to be typed in again, and links the two records permanently through
+   di_patients.clinic_client_id.
+
+   Read-only. This app never writes to clinic_state.
+   =================================================================== */
+const last10 = s => String(s==null?"":s).replace(/\D/g,"").slice(-10);
+
+/* Reads billing_clients_v — a read-only window, not the billing table.
+   The database itself refuses any write through that view, so this app
+   cannot alter your billing data even if this code were wrong. */
+async function findBillingClients(query){
+  const q=String(query||"").trim();
+  if(q.length<3) return { ok:true, matches:[] };
+  const { data, error, count } = await sb
+    .from("billing_clients_v")
+    .select("client_id,name,phone,age,concern,notes", { count:"exact" });
+  if(error) return { ok:false, reason:error.message };
+  const clients = data || [];
+  const digits = last10(q), text = q.toLowerCase();
+  const matches = clients.filter(c=>{
+    if(digits.length>=4 && last10(c.phone).includes(digits)) return true;
+    return String(c.name||"").toLowerCase().includes(text);
+  }).slice(0,8).map(c=>({ id:c.client_id, name:c.name, phone:c.phone,
+                          age:c.age, concern:c.concern, notes:c.notes }));
+  return { ok:true, matches, total:count!=null?count:clients.length };
+}
+
+/* Already pulled through once? Don't create a second record for the same person. */
+async function existingPatientFor(clientId){
+  const { data } = await sb.from("di_patients").select("id,name")
+    .eq("clinic_client_id", String(clientId)).limit(1);
+  return (data && data[0]) || null;
+}
+
 async function viewEdit(id){
   let p = { consent:{} };
   if(id){
@@ -533,7 +571,20 @@ async function viewEdit(id){
   return `
   <div class="eyebrow">${id ? "Edit record" : "New patient"}</div>
   <h2 class="disp">${id ? esc(p.name) : "Add a patient"}</h2>
-  <p class="sub" style="margin:6px 0 16px">Only the name is required. Fill in the rest over time.</p>
+  <p class="sub" style="margin:6px 0 12px">Only the name is required. Fill in the rest over time.</p>
+  ${id?"":`
+  <div class="card noprint" style="border-color:var(--rose)">
+    <div class="eyebrow" style="margin-bottom:7px">Already a client?</div>
+    <p class="sub" style="margin:0 0 9px">Search your billing app by phone number or name and pull
+      their details across instead of typing them again.</p>
+    <div class="row">
+      <input class="in" id="billSearch" placeholder="Phone number or name"
+        style="flex:2;min-width:170px">
+      <button class="btn sm" id="billGo" style="flex:0 0 auto">Search</button>
+    </div>
+    <div id="billResults"></div>
+  </div>`}
+  <input type="hidden" data-f="clinic_client_id" id="clientLink" value="${esc(p.clinic_client_id||"")}">
   ${P_FIELDS.map(f => fieldHTML(f, p[f[0]] ?? "")).join("")}
   <div class="eyebrow dim" style="margin:18px 0 8px">Consent — each one separate, each one withdrawable</div>
   ${[["care","Care delivery"],["training","Use images to improve the tool"],
@@ -587,6 +638,8 @@ async function viewPatient(id){
     ${line("Lifestyle", p.lifestyle)}
     ${(p.stress!=null||p.sleep!=null) ? line("Stress / sleep", `Stress ${p.stress??"—"}/10 · Sleep ${p.sleep??"—"}/10`) : ""}
     ${line("Labs", p.labs)}
+    ${p.clinic_client_id?`<div style="padding:10px 0 0">
+      <span class="chip ok">LINKED TO BILLING CLIENT #${esc(p.clinic_client_id)}</span></div>`:""}
     <div style="padding:10px 0 0">
       <div class="tiny">CONSENT</div>
       <div class="row" style="margin-top:7px;gap:6px">
@@ -830,11 +883,24 @@ async function viewReport(id){
       <select class="in" id="viewPick">
         ${VIEWS.map(v=>`<option value="${v.k}">${esc(v.name)}${v.kind==="hair"?" — scalp":""}</option>`).join("")}
       </select></label>
-    <label class="btn ghost" style="margin:0">
-      Take or add photo for this view
-      <input type="file" accept="image/*" capture="environment" id="photoIn" multiple style="display:none">
-    </label>
+    <div class="row">
+      <label class="btn ghost" style="margin:0">
+        &#128247;&nbsp; Take photo
+        <input type="file" accept="image/*" capture="environment" id="photoIn" multiple style="display:none">
+      </label>
+      <label class="btn ghost" style="margin:0">
+        &#128194;&nbsp; Choose from gallery
+        <input type="file" accept="image/*" id="photoLib" multiple style="display:none">
+      </label>
+    </div>
+    <p class="sub" style="margin-top:7px">Gallery photos work exactly the same. Just remember that
+      scores only compare between visits if the lighting and distance matched.</p>
   </div>`}
+  ${photos.length?`<button class="btn ghost sm noprint" id="savePhotos"
+     style="margin-top:9px">&#11015;&nbsp; Save these photos to my phone</button>
+   <p class="sub" style="margin-top:6px">Opens the share sheet — tap <b>Save Image</b> to put them in
+     your gallery. Photos taken inside the app do not reach your camera roll on their own; iOS
+     does not allow it.</p>`:""}
 
   ${quality}
   ${overlays}
@@ -2388,6 +2454,52 @@ async function wireUp(){
     if(data && data.signedUrl) img.src = data.signedUrl;
   }
 
+  const bg = $("#billGo"), bs = $("#billSearch"), br = $("#billResults");
+  if(bg && bs && br){
+    const doSearch = async () => {
+      br.innerHTML = `<p class="sub" style="margin-top:9px">Searching…</p>`;
+      const res = await findBillingClients(bs.value);
+      if(!res.ok){
+        br.innerHTML = `<div class="banner warn" style="margin-top:9px">
+          Could not read the billing records: ${esc(res.reason)}.
+          You can still add this patient by hand.</div>`;
+        return;
+      }
+      if(!res.matches.length){
+        br.innerHTML = `<p class="sub" style="margin-top:9px">
+          No match among ${res.total||0} billing clients. Type the details in below.</p>`;
+        return;
+      }
+      br.innerHTML = res.matches.map(c=>`
+        <button class="card tap" data-pull='${esc(JSON.stringify(c))}' style="margin-top:8px">
+          <span style="flex:1">
+            <span style="display:block;font-size:14.5px">${esc(c.name||"Unnamed")}</span>
+            <span class="tiny" style="display:block;margin-top:3px">${esc(c.phone||"no phone")}${
+              c.age?" · "+esc(c.age):""}</span>
+            ${c.concern?`<span style="display:block;font-size:12px;color:var(--muted);margin-top:3px">${esc(c.concern)}</span>`:""}
+          </span>
+          <span class="chip">PULL IN</span>
+        </button>`).join("");
+
+      $$("[data-pull]", br).forEach(btn => btn.onclick = async () => {
+        const c = JSON.parse(btn.dataset.pull);
+        const dup = await existingPatientFor(c.id);
+        if(dup && !confirm(`${c.name} is already in this app as "${dup.name}".\n\n`
+          + "Create a second record anyway?")) { go("patient",{id:dup.id}); return; }
+        const set=(f,v)=>{ const el=$(`[data-f="${f}"]`); if(el && v!=null && v!=="") el.value=v; };
+        set("name", c.name); set("phone", c.phone); set("age", c.age);
+        set("skin_concerns", c.concern);
+        set("med_history", c.notes);
+        const link=$("#clientLink"); if(link) link.value = c.id==null?"":String(c.id);
+        br.innerHTML = `<div class="banner ok" style="margin-top:9px">
+          Pulled in from billing and linked. Check the details below, then save.</div>`;
+        toast("Details filled from your billing records.");
+      });
+    };
+    bg.onclick = doSearch;
+    bs.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); doSearch(); } });
+  }
+
   const sp = $("#savePatient");
   if(sp) sp.onclick = async () => {
     const row = {};
@@ -2427,8 +2539,8 @@ async function wireUp(){
     } catch(e){ fail(e); }
   };
 
-  const pi = $("#photoIn");
-  if(pi) pi.onchange = async e => {
+  /* Camera and gallery behave identically once a file is chosen. */
+  const onPhotoChosen = async e => {
     const files = Array.from(e.target.files); if(!files.length) return;
     toast("Uploading…", 9000);
     try {
@@ -2444,10 +2556,32 @@ async function wireUp(){
                     view_label: vsel ? vsel.value : null });
         if(rowErr) throw rowErr;
       }
-      await addAudit(CTX.id, files.length + " photo(s) added");
+      const src = e.target.id === "photoLib" ? "gallery" : "camera";
+      await addAudit(CTX.id, files.length + " photo(s) added from " + src
+                     + " as " + viewName($("#viewPick") ? $("#viewPick").value : null));
       toast("Photos saved."); render();
     } catch(err){ fail(err); }
   };
+  const svp = $("#savePhotos");
+  if(svp) svp.onclick = async () => {
+    svp.disabled=true; svp.textContent="Preparing…";
+    try {
+      const { data:pat } = await sb.from("di_patients").select("name")
+        .eq("id", CTX.pid || (await sb.from("di_reports").select("patient_id")
+        .eq("id",CTX.id).single()).data.patient_id).single();
+      const list = $$("img[data-path]").map((im,i)=>({ path:im.dataset.path, label:"photo"+(i+1) }))
+        .filter(x=>!x.path.includes("panel-"));
+      const res = await savePhotosToDevice(list, pat && pat.name);
+      if(!res.ok) toast(res.reason);
+      else if(res.via==="share") toast("Now tap Save Image in the share sheet.", 5000);
+      else if(res.via==="download") toast("Downloaded. On iPhone, open each and tap Save Image.", 6000);
+    } catch(e){ fail(e); }
+    svp.disabled=false; svp.textContent="⬇  Save these photos to my phone";
+  };
+
+  const camIn = $("#photoIn"), libIn = $("#photoLib");
+  if(camIn) camIn.onchange = onPhotoChosen;
+  if(libIn) libIn.onchange = onPhotoChosen;
 
   $$("[data-delphoto]").forEach(b => b.onclick = async () => {
     if(!confirm("Remove this photo?")) return;
@@ -2612,6 +2746,33 @@ async function addAudit(reportId, what){
   const { data:r } = await sb.from("di_reports").select("audit").eq("id", reportId).single();
   const audit = ((r && r.audit) || []).concat([{ at:new Date().toISOString(), what }]);
   await sb.from("di_reports").update({ audit }).eq("id", reportId);
+}
+
+/* Save photos back to the phone.
+   iOS will not let a web page write into Photos on its own — that permission
+   belongs to installed apps only. The share sheet is the sanctioned route:
+   one tap here, then "Save Image". On a laptop it just downloads. */
+async function savePhotosToDevice(paths, patientName){
+  const files=[];
+  for(let i=0;i<paths.length;i++){
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(paths[i].path, 300);
+    if(error) throw error;
+    const blob = await (await fetch(data.signedUrl)).blob();
+    const safe = String(patientName||"patient").replace(/[^A-Za-z0-9]+/g,"-").toLowerCase();
+    files.push(new File([blob], `auraa-${safe}-${paths[i].label||("photo"+(i+1))}.jpg`,
+                        { type:"image/jpeg" }));
+  }
+  if(!files.length) return { ok:false, reason:"No photos to save." };
+  if(navigator.canShare && navigator.canShare({ files })){
+    try { await navigator.share({ files, title:"Auraa clinical photos" }); return { ok:true, via:"share" }; }
+    catch(e){ if(e && e.name==="AbortError") return { ok:true, via:"cancelled" }; }
+  }
+  for(const f of files){
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(f); a.download=f.name; a.click();
+    await new Promise(r=>setTimeout(r,250));
+  }
+  return { ok:true, via:"download" };
 }
 
 /* shrink the photo in the browser before uploading — keeps it around 150 KB */
