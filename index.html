@@ -6,9 +6,79 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Derma-Intelligence">
+<meta name="apple-mobile-web-app-title" content="Auraa">
 <meta name="theme-color" content="#FFFFFF">
 <title>Auraa · Derma-Intelligence</title>
+<script>
+/* ===================================================================
+   HOME SCREEN ICON
+   Drawn here rather than shipped as image files, so the app stays a
+   single file you upload on its own. iOS reads the icon link at the
+   moment you tap "Add to Home Screen", so it is injected before then.
+   =================================================================== */
+(function(){
+  function drawIcon(size){
+    var c=document.createElement("canvas"); c.width=c.height=size;
+    var x=c.getContext("2d");
+
+    // deep magenta field, darkening to plum — Auraa's colour, not a grey box
+    var g=x.createLinearGradient(0,0,size,size);
+    g.addColorStop(0,"#F0208F"); g.addColorStop(0.45,"#D4006F");
+    g.addColorStop(1,"#6E0039");
+    x.fillStyle=g; x.fillRect(0,0,size,size);
+
+    // soft highlight, top left
+    var r=x.createRadialGradient(size*0.26,size*0.20,size*0.01,
+                                 size*0.26,size*0.20,size*0.78);
+    r.addColorStop(0,"rgba(255,255,255,.26)");
+    r.addColorStop(1,"rgba(255,255,255,0)");
+    x.fillStyle=r; x.fillRect(0,0,size,size);
+
+    // corner shading for depth
+    var v=x.createRadialGradient(size*0.5,size*0.5,size*0.30,
+                                 size*0.5,size*0.5,size*0.78);
+    v.addColorStop(0,"rgba(0,0,0,0)"); v.addColorStop(1,"rgba(60,0,30,.42)");
+    x.fillStyle=v; x.fillRect(0,0,size,size);
+
+    // the A, in the same serif as the wordmark
+    x.textAlign="center"; x.textBaseline="alphabetic";
+    x.font = "400 " + Math.round(size*0.60) + "px 'Iowan Old Style','Palatino Linotype',Georgia,'Times New Roman',serif";
+    x.fillStyle="rgba(40,0,22,.30)";
+    x.fillText("A", size*0.5+size*0.012, size*0.685+size*0.012);   // shadow
+    x.fillStyle="#FFF6FA";
+    x.fillText("A", size*0.5, size*0.685);
+
+    // gold hairline beneath
+    x.fillStyle="rgba(240,214,140,.92)";
+    x.fillRect(size*0.335, size*0.755, size*0.33, Math.max(1,size*0.016));
+
+    return c.toDataURL("image/png");
+  }
+
+  function link(rel,href,sizes,type){
+    var l=document.createElement("link");
+    l.rel=rel; l.href=href;
+    if(sizes) l.sizes=sizes;
+    if(type) l.type=type;
+    document.head.appendChild(l);
+  }
+
+  try{
+    var i180=drawIcon(180), i512=drawIcon(512);
+    link("apple-touch-icon", i180, "180x180");
+    link("apple-touch-icon-precomposed", i180, "180x180");
+    link("icon", drawIcon(32), "32x32", "image/png");
+    link("icon", i512, "512x512", "image/png");
+    var manifest={ name:"Auraa Derma-Intelligence", short_name:"Auraa",
+      start_url:".", display:"standalone",
+      background_color:"#FFFFFF", theme_color:"#E5007D",
+      icons:[{src:drawIcon(192),sizes:"192x192",type:"image/png"},
+             {src:i512,sizes:"512x512",type:"image/png",purpose:"any maskable"}] };
+    link("manifest", URL.createObjectURL(
+      new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"})));
+  }catch(e){ /* an icon is not worth breaking the app over */ }
+})();
+</script>
 <style>
 :root{
   /* Auraa brand. Magenta and black on white, taken from the clinic logo.
